@@ -45,7 +45,7 @@
 
 	<modules>
 		<module>crunchR</module>
-		<!-- module>examples</module -->
+		<module>examples</module>
 	</modules>
 
 	<scm>
@@ -128,8 +128,8 @@
 						</execution>
 					</executions>
 				</plugin>
-
 			</plugins>
+
 		</pluginManagement>
 
 	</build>
