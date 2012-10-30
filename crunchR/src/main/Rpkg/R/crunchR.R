@@ -26,7 +26,6 @@ NULL
 	crunchR <- new.env()
 	
 	hadoopcp <- crunchR.hadoopClassPath()
-	crunchR$hadoopcp <- hadoopcp
 	
 	if ( pkgInit ) {
 		options(error=quote(dump.frames("errframes", F)))
@@ -43,7 +42,7 @@ NULL
 		# DEBUG mode: package not installed.
 		# look files in a maven project tree 
 		# denoted by RCRUNCH_HOME
-		rcrunchHome <- Sys.getenv("RCRUNCH_HOME")
+		rcrunchHome <- Sys.getenv("RCRUNCH_HOME","~/projects/github/crunchR/crunchR")
 		if ( nchar(rcrunchHome)==0 )
 			stop ("for initializing from maven tree, set RCRUNCH_HOME variable.")
 		
@@ -60,12 +59,21 @@ NULL
 	
 	# make sure all classpath entries exists, 
 	# it may cause problems later.
+	crunchR$hadoopcp <- hadoopcp
 	crunchR$cp <- crunchR$cp[file.exists(crunchR$cp)]
 	crunchR$jobJar <- jobJar[1]
+
+	crunchR$PipelineJClass <- J("org/apache/crunch/Pipeline")
+	crunchR$PipelineResultJClass <- J("org/apache/crunch/PipelineResult")
+	crunchR$MRPipelineJClass <- J("org/apache/crunch/impl/mr/MRPipeline")
+	crunchR$DistCacheJClass <- J("org/apache/crunch/util/DistCache")
+	crunchR$FileJClass <- J("java/io/File")
 	
 	#finding job jar 
-	
 	crunchR <<- crunchR
+	
+	# init inclusions 
+	.pipeline.init(pkgname)
 	
 }
 

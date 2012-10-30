@@ -11,4 +11,4 @@ if [[ "$ver" == "" ]]; then
 fi
 
 
-sudo R CMD REMOVE crunchR; { $MVN && sudo HADOOP_HOME=$HADOOP_HOME R_COMPILE_PKGS=1 R CMD INSTALL --build target/crunchR-${ver}-rpkg; }
+R CMD REMOVE crunchR; { $MVN && R_COMPILE_PKGS=1 R CMD INSTALL --build target/crunchR-${ver}-rpkg; }
