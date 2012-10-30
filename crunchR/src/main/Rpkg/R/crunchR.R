@@ -4,6 +4,7 @@
 #' @name crunchR
 #' @exportPattern "^crunchR\\."
 #' @import rJava
+#' @include pipeline.R
 #' 
 NULL
 
@@ -34,6 +35,10 @@ NULL
 		cp <- list.files(system.file("java",package=pkgname,lib.loc=libname),
 				full.names=T, pattern ="\\.jar$")
 		crunchR$cp <- cp
+		jobJar <- list.files(system.file("hadoop-job", package=pkgname, lib.loc=libname), full.names=T, pattern="^crunchR-.*-hadoop-job.jar$")
+		
+		if (length(jobJar)!=1) stop ("cannot find hadoop job jar")
+		
 	} else {
 		# DEBUG mode: package not installed.
 		# look files in a maven project tree 
@@ -49,11 +54,16 @@ NULL
 		.jinit(classpath = c(hadoopcp,cp))
 		
 		crunchR$cp <- cp
+		
+		jobJar <- list.files(libdir, pattern="^crunchR-.*-hadoop-job.jar$")
 	}
 	
 	# make sure all classpath entries exists, 
 	# it may cause problems later.
 	crunchR$cp <- crunchR$cp[file.exists(crunchR$cp)]
+	crunchR$jobJar <- jobJar[1]
+	
+	#finding job jar 
 	
 	crunchR <<- crunchR
 	
