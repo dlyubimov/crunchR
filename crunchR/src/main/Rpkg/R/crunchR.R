@@ -3,9 +3,10 @@
 #' @docType package
 #' @name crunchR
 #' @exportPattern "^crunchR\\."
-#' 
 #' @import rJava
+#' @import RProtoBuf
 #' @include pipeline.R
+#' @include DoFn.R
 #' 
 NULL
 
@@ -17,14 +18,15 @@ NULL
 .onLoad <- function (libname=NULL,pkgname=NULL) .crunchR.init(libname,pkgname, pkgInit=T)
 .onUnload <- function(libpath) rm(crunchR) 
 
+.crunchR <- new.env(parent=emptyenv())
+
 .crunchR.init <- function(libname=NULL, pkgname=NULL, pkgInit = F) {
 	
 	library(rJava)
-#	require(RProtoBuf)
+	require(RProtoBuf)
 	
 	if ( length(pkgname) == 0 ) pkgname <- "crunchR"
 	
-	crunchR <- new.env()
 	
 	hadoopcp <- crunchR.hadoopClassPath()
 	
@@ -34,7 +36,7 @@ NULL
 		.jpackage(pkgname, morePaths = hadoopcp, lib.loc = libname)
 		cp <- list.files(system.file("java",package=pkgname,lib.loc=libname),
 				full.names=T, pattern ="\\.jar$")
-		crunchR$cp <- cp
+		.crunchR$cp <- cp
 		jobJar <- list.files(system.file("hadoop-job", package=pkgname, lib.loc=libname), full.names=T, pattern="^crunchR-.*-hadoop-job.jar$")
 		
 		if (length(jobJar)!=1) stop ("cannot find hadoop job jar")
@@ -53,25 +55,25 @@ NULL
 				file.path(libdir,"test-classes"))
 		.jinit(classpath = c(hadoopcp,cp))
 		
-		crunchR$cp <- cp
+		.crunchR$cp <- cp
 		
 		jobJar <- list.files(libdir, pattern="^crunchR-.*-hadoop-job.jar$")
 	}
 	
 	# make sure all classpath entries exists, 
 	# it may cause problems later.
-	crunchR$hadoopcp <- hadoopcp
-	crunchR$cp <- crunchR$cp[file.exists(crunchR$cp)]
-	crunchR$jobJar <- jobJar[1]
+	.crunchR$hadoopcp <- hadoopcp
+	.crunchR$cp <- .crunchR$cp[file.exists(.crunchR$cp)]
+	.crunchR$jobJar <- jobJar[1]
 
-	crunchR$PipelineJClass <- J("org/apache/crunch/Pipeline")
-	crunchR$PipelineResultJClass <- J("org/apache/crunch/PipelineResult")
-	crunchR$MRPipelineJClass <- J("org/apache/crunch/impl/mr/MRPipeline")
-	crunchR$DistCacheJClass <- J("org/apache/crunch/util/DistCache")
-	crunchR$FileJClass <- J("java/io/File")
+	.crunchR$PipelineJClass <- J("org/apache/crunch/Pipeline")
+	.crunchR$PipelineResultJClass <- J("org/apache/crunch/PipelineResult")
+	.crunchR$MRPipelineJClass <- J("org/apache/crunch/impl/mr/MRPipeline")
+	.crunchR$DistCacheJClass <- J("org/apache/crunch/util/DistCache")
+	.crunchR$FileJClass <- J("java/io/File")
 	
 	#finding job jar 
-	crunchR <<- crunchR
+#	crunchR <<- crunchR
 	
 	# init inclusions 
 	.pipeline.init(pkgname)

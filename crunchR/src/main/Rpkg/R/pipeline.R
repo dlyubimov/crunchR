@@ -6,7 +6,7 @@ Pipeline.initialize <- function (jpipeline = NULL) {
 	
 	if ( !is.null(jpipeline))  {
 		stopifnot ( is(jpipeline,"jobjRef") & 
-						jpipeline %instanceof% crunchR$PipelineJClass )
+						jpipeline %instanceof% .crunchR$PipelineJClass )
 		jobj <<- jpipeline
 	}
 }
@@ -16,7 +16,7 @@ Pipeline.getConfiguration <- function () {
 }
 
 MRPipeline.initialize <- function (name = "crunchR-pipe") {
-	jp <- new(crunchR$MRPipelineJClass, crunchR$MRPipelineJClass@jobj, name )
+	jp <- new(.crunchR$MRPipelineJClass, .crunchR$MRPipelineJClass@jobj, name )
 	callSuper(jpipeline=jp)
 }
 
@@ -45,9 +45,9 @@ MRPipeline.run <- function () {
 	jConf <- mrPipeline$getConfiguration()
 	stopifnot (!is.null(jConf))
 	
-	sapply(crunchR$cp,function (jarPath) {
-				file <- new( crunchR$FileJClass, jarPath )
-				.jcall(crunchR$DistCacheJClass,"addJarToDistributedCache", jConf, file)
+	sapply(.crunchR$cp,function (jarPath) {
+				file <- new( .crunchR$FileJClass, jarPath )
+				.jcall(.crunchR$DistCacheJClass,"addJarToDistributedCache", jConf, file)
 			})	
 	NULL
 }		
@@ -86,7 +86,7 @@ crunchR.PipelineResult <- setRefClass("PipelineResult",
 		methods = list (
 				initialize = function( jpipelineResult ) {
 					stopifnot (is(jpipelineResult,"jobjRef") & 
-									jpipelineResult %instanceof% crunchR$PipelineResultJClass)
+									jpipelineResult %instanceof% .crunchR$PipelineResultJClass)
 					jobj <<- jpipelineResult
 				}
 		)
