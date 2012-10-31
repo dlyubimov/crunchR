@@ -1,0 +1,16 @@
+Package: crunchR
+Version: 0.1.0-20121031110717
+Date: 2012-10-31
+Title: CrunchR
+License: Apache (==2.0)
+Authors@R: c(person("Dmitriy", "Lyubimov", role = c("aut","cre"),
+    email = "dlyubimov@apache.org")
+    )
+Author: Dmitriy Lyubimov
+Maintainer: Dmitriy Lyubimov <dlyubimov@apache.org>
+Depends:
+    R (>= 2.14.0),
+    RProtoBuf
+Description: R bridge to Apache Crunch, Hadoop's hdfs and Mahout's DRM formats
+URL: https://github.com/dlyubimov/crunchR
+BugReports: https://github.com/dlyubimov/crunchR
