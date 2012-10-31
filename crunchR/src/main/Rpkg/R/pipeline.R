@@ -20,12 +20,20 @@ MRPipeline.initialize <- function (name = "crunchR-pipe") {
 	callSuper(jpipeline=jp)
 }
 
-#' Run MR pipeline.
+
+#' @title Run MR pipeline.
 #' 
-#' MRPipeline run
+#' @description MRPipeline run
+#' 
+#' @details
+#' 
+#' This calls Crunch's MRPipeline#run() call. 
+#' it also makes sure that all rcrunchR jars are added to the job 
+#' using DistCache class. 
+#' 
 #' 
 MRPipeline.run <- function () { 
-	'Runs MR pipeline.
+	'Runs MR pipeline	
 	' 
 	
 	.equipWithJobJars(.self)
@@ -48,7 +56,10 @@ MRPipeline.run <- function () {
 #'
 #' crunchR's pipeline R5 class wrapper
 #' 
-crunchR.Pipeline <- setRefClass("Pipeline", fields = c("jobj"),
+crunchR.Pipeline <- setRefClass("Pipeline", 
+		fields = list( 
+				jobj = "jobjRef"
+		),
 		methods = list(
 				initialize = Pipeline.initialize,
 				getConfiguration = Pipeline.getConfiguration
@@ -68,9 +79,10 @@ crunchR.MRPipeline <- setRefClass("MRPipeline", contains=crunchR.Pipeline,
 #'
 #' PipelineResult R5 class
 #' 
-#' @S3class PipelineResult
-#' 
-crunchR.PipelineResult <- setRefClass("PipelineResult",fields=c("jobj"),
+crunchR.PipelineResult <- setRefClass("PipelineResult",
+		fields = list( 
+				jobj = "jobjRef"
+		),
 		methods = list (
 				initialize = function( jpipelineResult ) {
 					stopifnot (is(jpipelineResult,"jobjRef") & 

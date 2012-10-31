@@ -49,6 +49,7 @@
 					<plugin>
 						<artifactId>maven-antrun-plugin</artifactId>
 						<executions>
+
 							<execution>
 								<id>generate-R-sources</id>
 								<phase>compile</phase>
@@ -154,6 +155,37 @@
 						<artifactId>maven-javadoc-plugin</artifactId>
 					</plugin>
 
+					<plugin>
+						<artifactId>maven-antrun-plugin</artifactId>
+						<executions>
+
+							<execution>
+								<id>generate-proto-sources</id>
+								<phase>generate-sources</phase>
+								<configuration>
+									<tasks>
+										<mkdir dir="${basedir}/target/generated-sources/proto" />
+
+										<exec executable="protoc" failonerror="true">
+											<arg value="--java_out=${basedir}/target/generated-sources/proto" />
+											<arg value="--proto_path=${basedir}/src/main/Rpkg/inst/proto" />
+											<arg
+												value="--descriptor_set_out=${basedir}/target/generated-sources/crunchR.protodesc" />
+											<arg value="--include_imports" />
+											<arg value="${basedir}/src/main/Rpkg/inst/proto/crunchR.proto" />
+										</exec>
+
+									</tasks>
+									<sourceRoot>target/generated-sources/proto</sourceRoot>
+								</configuration>
+								<goals>
+									<goal>run</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+
+
 				</plugins>
 			</build>
 		</profile>
@@ -170,6 +202,16 @@
 		<dependency>
 			<groupId>org.apache.crunch</groupId>
 			<artifactId>crunch</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-client</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>com.google.protobuf</groupId>
+			<artifactId>protobuf-java</artifactId>
 		</dependency>
 
 		<!-- test -->

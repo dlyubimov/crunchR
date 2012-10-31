@@ -3,6 +3,7 @@
 #' @docType package
 #' @name crunchR
 #' @exportPattern "^crunchR\\."
+#' 
 #' @import rJava
 #' @include pipeline.R
 #' 

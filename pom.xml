@@ -66,6 +66,7 @@
 			<properties>
 				<crunch-version>0.4.0-incubating-SNAPSHOT</crunch-version>
 				<rJava-version>0.9-3</rJava-version>
+				<protobuf-version>2.4.1</protobuf-version>
 			</properties>
 		</profile>
 
@@ -145,6 +146,15 @@
 			</dependency>
 
 			<!-- 3rd party modules -->
+
+			<!-- override crunch's protobuf version for now as i have a different 
+				protoc installed. -->
+			<dependency>
+				<groupId>com.google.protobuf</groupId>
+				<artifactId>protobuf-java</artifactId>
+				<version>${protobuf-version}</version>
+			</dependency>
+
 
 			<!-- Apache Crunch -->
 			<dependency>
