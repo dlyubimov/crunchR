@@ -2,20 +2,9 @@ package crunchR;
 option java_package= "org.crunchr.proto.codegen";
 option optimize_for = SPEED;
 
-message Chunk {
+message Strings {
 
-	optional string chunkType = 1;
-	
-	repeated bytes Rserialized = 10;
-	repeated string character = 11;
-	repeated double vector = 12; 
-	
-	repeated SparseVectorElement sparseVector = 13;
-	
-	message SparseVectorElement {
-		repeated fixed32 index = 10;
-		repeated double item = 11; 
-	}
+	optional string strings = 1;
 
 }
 
