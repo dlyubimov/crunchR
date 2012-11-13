@@ -2,9 +2,8 @@ package crunchR;
 option java_package= "org.crunchr.proto.codegen";
 option optimize_for = SPEED;
 
-message Strings {
-
-	optional string strings = 1;
+message PayloadItem {
 
 }
+
 

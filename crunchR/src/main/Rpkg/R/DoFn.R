@@ -1,5 +1,5 @@
 
-#'
+#' DoFn$initialize method
 #' 
 #' @param rDoFn RDoFn (java class) owner
 #' @param FUN_PROCESS the process method, R-serialized into raw
@@ -10,37 +10,22 @@ DoFn.initialize <- function (rDoFn, FUN_PROCESS, FUN_INITIALIZE=NULL, FUN_CLEANU
 	FUN_PROCESS <<- FUN_PROCESS
 	if (!is.null(FUN_INITIALIZE)) FUN_INITIALIZE <<- FUN_INITIALIZE
 	if (!is.null(FUN_CLEANUP)) FUN_CLEANUP <<- FUN_CLEANUP
-}
-
-DoFn.run <- function() { 
-	eOption <- getOption("error")
-	options(error=quote(dump.frames("errframes",F)))
-	on.exit(options( error=eOption))
-	
-	if ( !is.null(FUN_INITIALIZE ))
-		FUN_INITIALIZE()
-	
-	tryCatch({
-				
-				# todo .. process
-			},
-			finally = {
-				try( if ( !is.null(FUN_CLEANUP)) FUN_CLEANUP());
-			})
 	
 }
 
-
+#	eOption <- getOption("error")
+#	options(error=quote(dump.frames("errframes",F)))
+#	on.exit(options( error=eOption))
+	
 crunchR.DoFn <- setRefClass("DoFn",
 		fields = list(
-				rDoFn = "jobjref",
+				rDoFn = "jobjRef",
+				rPipe = "jobjRef",
 				FUN_INITIALIZE="function",
 				FUN_PROCESS="function",
 				FUN_CLEANUP="function"
 		),
 		methods = list (
-				initialize = DoFn.initialize,
-				run = DoFn.run
-		
+				initialize = DoFn.initialize
 		)
 )
