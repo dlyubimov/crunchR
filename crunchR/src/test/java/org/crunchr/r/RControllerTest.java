@@ -10,6 +10,7 @@ public class RControllerTest {
     public void test1() throws Exception { 
         RController rController = RController.getInstance(null);
         TwoWayRPipe rpipe = rController.getRPipe();
+        rpipe.start();
         rpipe.shutdown(true);
         
     }

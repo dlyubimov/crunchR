@@ -179,6 +179,11 @@ public class TwoWayRPipe {
 
     }
 
+    /**
+     * BIG WARNING: this starts pipe on the R side. It means that R will keep
+     * scanning for incoming messages or shutdown requests and new R calls will
+     * not be available until the pipe is shut down.
+     */
     public void start() {
         Runnable r = new Runnable() {
 

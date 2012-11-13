@@ -68,10 +68,6 @@ public class RController extends Configured {
          */
         rengine.eval("options(error=quote(dump.frames(\"errframes\", F)))");
 
-        /* now we can make regular calls to eval() from there on. */
-
-        rpipe.start();
-
     }
 
     public Object eval(String expr) throws RCallException {
