@@ -3,12 +3,16 @@ package org.crunchr.io;
 import java.io.IOException;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.logging.Logger;
 
 import org.crunchr.RType;
 import org.crunchr.fn.RDoFn;
+import org.crunchr.r.RCallException;
+import org.crunchr.r.RController;
 
 /**
  * Data xchg pipes between Java and R side.
@@ -36,6 +40,7 @@ import org.crunchr.fn.RDoFn;
 public class TwoWayRPipe {
 
     private static final int      MAXINBUFCAPACITY = 1 << 12;
+    private static final Logger   s_log            = Logger.getLogger("crunchR");
 
     private ByteBuffer            inBuffers[];
     private BlockingQueue<byte[]> inQueue;
@@ -46,10 +51,12 @@ public class TwoWayRPipe {
     private int                   inCount          = 0;
     private int                   availableOutBuffers;
     private final int             flushBufferCapacity;
+    private Thread                rThread;
+    private RCallException        lastErr;
 
     @SuppressWarnings("rawtypes")
-    private Map<Integer, RDoFn>   doFnMap;
-    private Map<Integer, Object>  outHolders;
+    private Map<Integer, RDoFn>   doFnMap          = new HashMap<Integer, RDoFn>();
+    private Map<Integer, Object>  outHolders       = new HashMap<Integer, Object>();
 
     public TwoWayRPipe(int initialCapacity) throws IOException {
         super();
@@ -170,6 +177,45 @@ public class TwoWayRPipe {
             throw new IOException("Interrupted", e);
         }
 
+    }
+
+    public void start() {
+        Runnable r = new Runnable() {
+
+            @Override
+            public void run() {
+                // should be started by now
+                try {
+                    RController controller = RController.getInstance(null);
+                    controller.evalWithMethodArgs("crunchR.rpipe <- crunchR.TwoWayPipe$new", TwoWayRPipe.this);
+                    controller.eval("crunchR.rpipe$run()");
+                } catch (IOException exc) {
+                    lastErr = new RCallException(exc);
+                    s_log.severe(exc.toString());
+
+                } catch (RCallException exc) {
+                    lastErr = exc;
+                    s_log.severe(exc.toString());
+                }
+
+            }
+
+        };
+        rThread = new Thread(r);
+        rThread.start();
+    }
+
+    public void shutdown(boolean waitClose) throws IOException {
+        closeInput();
+        closeOutput(false);
+        try {
+            if (waitClose)
+                rThread.join();
+            if (lastErr != null)
+                throw new IOException(lastErr);
+        } catch (InterruptedException e) {
+            throw new IOException("Interrupted");
+        }
     }
 
     private static void resetBuffer(ByteBuffer buffer) {

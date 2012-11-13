@@ -68,13 +68,9 @@ public class RController extends Configured {
          */
         rengine.eval("options(error=quote(dump.frames(\"errframes\", F)))");
 
-        /* now we can make regular calls to eval() */
+        /* now we can make regular calls to eval() from there on. */
 
-        try {
-            evalWithMethodArgs("crunchR.TwoWayPipe$new", rpipe);
-        } catch (RCallException exc) {
-            throw new IOException("R Call failed", exc);
-        }
+        rpipe.start();
 
     }
 
@@ -118,12 +114,15 @@ public class RController extends Configured {
             if (args[i - 1] == null)
                 eval.append("NULL");
             else
-                eval.append(String.format(".jsimplify(crunchr.rcargs__[[%d]])", i));
+                eval.append(String.format(".jsimplify(crunchR.rcargs__[[%d]])", i));
             if (i < args.length)
                 eval.append(",");
         }
         eval.append(")");
-        return eval(eval.toString());
+        Object r = eval(eval.toString());
+        eval("rm(crunchR.rcargs__)");
+        return r;
+
     }
 
     public Rengine getEngine() {

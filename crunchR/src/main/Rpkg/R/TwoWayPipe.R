@@ -1,7 +1,6 @@
 
 TwoWayPipe.initialize <- function (jpipe ) { 
 	
-	options(error=quote(dump.frames("errframes", F)))
 	jpipe <<- jpipe
 	doFnMap <<- list()
 	
@@ -30,8 +29,8 @@ TwoWayPipe.addDoFn <- function ( doFn ) {
 TwoWayPipe.run <- function () {
 	repeat {
 		rawbuff <- jpipe$rcallbackNextBuff()
-		if ( is.null(rawbuff)) break;
-		dispatch(rawbuff);
+		if ( is.null(rawbuff)) break
+		dispatch(rawbuff)
 		jpipe$rcallbackBufferConsumed()
 	}
 }
