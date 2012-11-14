@@ -7,24 +7,31 @@ import org.crunchr.RType;
 
 public class RStrings implements RType<String[]> {
 
-	private RString strType = new RString();
+    private static final RStrings singleton = new RStrings();
 
-	@Override
-	public void set(ByteBuffer buffer, String[] src) throws IOException {
-		SerializationHelper.setVarUint32(buffer, src.length);
-		for (String str : src) {
-			strType.set(buffer, str);
-		}
-	}
+    public static RStrings getInstance() {
+        return singleton;
+    }
 
-	@Override
-	public String[] get(ByteBuffer buffer, String[] holder) throws IOException {
-		int count = SerializationHelper.getVarUint32(buffer);
-		String[] result = new String[count];
-		for (int i = 0; i < count; i++) {
-			result[i] = strType.get(buffer, null);
-		}
-		return result;
-	}
+    @Override
+    public void set(ByteBuffer buffer, String[] src) throws IOException {
+
+        SerializationHelper.setVarUint32(buffer, src.length);
+        RString rstr = RString.getInstance();
+        for (String str : src) {
+            rstr.set(buffer, str);
+        }
+    }
+
+    @Override
+    public String[] get(ByteBuffer buffer, String[] holder) throws IOException {
+        int count = SerializationHelper.getVarUint32(buffer);
+        String[] result = new String[count];
+        RString rstr = RString.getInstance();
+        for (int i = 0; i < count; i++) {
+            result[i] = rstr.get(buffer, null);
+        }
+        return result;
+    }
 
 }

@@ -5,11 +5,13 @@
 #' @exportPattern "^crunchR\\."
 #' @import rJava
 #' @import RProtoBuf
+#' 
+#' @include zzzClasses.R
 #' @include Pipeline.R
-#' @include DoFn.R
-#' @include SerializationHelper.R
 #' @include TwoWayPipe.R
+#' @include DoFn.R
 #' @include IO.R
+#' @include SerializationHelper.R
 #' 
 NULL
 

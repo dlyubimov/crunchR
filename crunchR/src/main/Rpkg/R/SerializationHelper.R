@@ -5,7 +5,7 @@ library(bitops)
 
 .getShort <- function (rawbuff, offset = 1 ) {
 	# assume little endian packing 
-	sum(bitShiftL(rawbuff[offset:(offset+1)],8*(0:1)))
+	as.integer(sum(bitShiftL(rawbuff[offset:(offset+1)],8*(0:1))))
 }
 
 .setShort <- function (x) {
@@ -39,18 +39,22 @@ library(bitops)
 	r[1:i]	
 }
 
-.getVarUint32V1 <- function (rawbuff, offset = 1 ) {
-	l <- offset + 4
+#' get variable length 32bit integer
+#' @return vector of 2 integers. 1st integer is the value. 
+#'  2nd value is number of bytes packed representation 
+#' was taking in the input buffer.
+.getVarUint32V1 <- function (rawbuff, offset = 1L ) {
+	l <- offset + 4L
 	if ( l > length(rawbuff) ) l <- length(rawbuff)
 	r <- as.integer(rawbuff[offset:l])
 	l <- which(bitAnd(r,0x80)==0)
-	if ( length(l)==0) l <- 1 else l <- l[1]
+	if ( length(l)==0) l <- 1L else l <- l[1]
 	# trim to actual variable length detected.
 	r<- r[1:l]
 	if ( l > 1 ) 
-		r[1:l-1] <- bitAnd(r[1:l-1],0x7f)
+		r[1:l-1L] <- bitAnd(r[1:l-1L],0x7f)
 	
-	c( sum(bitShiftL(r,7*(0:(length(r)-1)))), l)
+	as.integer(c( sum(bitShiftL(r,7*(0:(length(r)-1)))), l))
 }
 
 

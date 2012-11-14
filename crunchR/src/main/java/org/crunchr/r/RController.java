@@ -54,8 +54,6 @@ public class RController extends Configured {
         String args[] = conf.get(R_ARGS_PROP, "--vanilla").split(" ");
 
         rengine = new Rengine(args, false, null);
-        rpipe = new TwoWayRPipe(1 << 12);
-
         /*
          * load library
          */
@@ -67,6 +65,16 @@ public class RController extends Configured {
          * setup error handling
          */
         rengine.eval("options(error=quote(dump.frames(\"errframes\", F)))");
+
+        /*
+         * now R initialized, init TwoWayPipe on R side. This will make some R
+         * calls so we have to do it the last thing.
+         */
+        try {
+            rpipe = new TwoWayRPipe(1 << 12, this);
+        } catch (RCallException exc) {
+            throw new IOException("R call failed.", exc);
+        }
 
     }
 

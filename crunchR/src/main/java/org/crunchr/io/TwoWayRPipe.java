@@ -11,6 +11,7 @@ import java.util.logging.Logger;
 
 import org.crunchr.RType;
 import org.crunchr.fn.RDoFn;
+import org.crunchr.fn.RDoFnRType;
 import org.crunchr.r.RCallException;
 import org.crunchr.r.RController;
 
@@ -40,6 +41,12 @@ import org.crunchr.r.RController;
 public class TwoWayRPipe {
 
     private static final int      MAXINBUFCAPACITY = 1 << 12;
+
+    /*
+     * special message: add a do Fn to the R side
+     */
+    private static final short    ADD_DO_FN        = (short) -1;
+
     private static final Logger   s_log            = Logger.getLogger("crunchR");
 
     private ByteBuffer            inBuffers[];
@@ -53,12 +60,15 @@ public class TwoWayRPipe {
     private final int             flushBufferCapacity;
     private Thread                rThread;
     private RCallException        lastErr;
+    
+    @SuppressWarnings("rawtypes")
+    private RType<RDoFn>          rDoFnType        = new RDoFnRType();
 
     @SuppressWarnings("rawtypes")
     private Map<Integer, RDoFn>   doFnMap          = new HashMap<Integer, RDoFn>();
     private Map<Integer, Object>  outHolders       = new HashMap<Integer, Object>();
 
-    public TwoWayRPipe(int initialCapacity) throws IOException {
+    public TwoWayRPipe(int initialCapacity, RController controller) throws IOException, RCallException {
         super();
         inBuffers =
             new ByteBuffer[] { ByteBuffer.allocate(initialCapacity + 2), ByteBuffer.allocate(initialCapacity + 2) };
@@ -70,7 +80,17 @@ public class TwoWayRPipe {
         outQueue = new ArrayBlockingQueue<byte[]>(2);
 
         flushBufferCapacity = MAXINBUFCAPACITY;
+        controller.evalWithMethodArgs("crunchR.rpipe <- crunchR.TwoWayPipe$new", this);
 
+    }
+
+    public void addDoFn(RDoFn<?, ?> doFn) throws IOException { 
+        int doFnRef = doFnMap.size()+1;
+        doFnMap.put(doFnRef, doFn);
+        doFn.setDoFnRef(doFnRef);
+        
+        // ... dispatch function addition to the R side 
+        add(doFn,rDoFnType, ADD_DO_FN);
     }
 
     public <S> void add(S value, RType<S> rtype, int doFnRef) throws IOException {
@@ -95,7 +115,7 @@ public class TwoWayRPipe {
                     continue;
                 }
             }
-        if (inCount == 0x7FFF || inBuffers[inBuffer].capacity() >= flushBufferCapacity)
+        if (inCount == 0x7FFF || inBuffers[inBuffer].position() >= flushBufferCapacity)
             flushOutBuffer();
     }
 
@@ -192,7 +212,6 @@ public class TwoWayRPipe {
                 // should be started by now
                 try {
                     RController controller = RController.getInstance(null);
-                    controller.evalWithMethodArgs("crunchR.rpipe <- crunchR.TwoWayPipe$new", TwoWayRPipe.this);
                     controller.eval("crunchR.rpipe$run()");
                 } catch (IOException exc) {
                     lastErr = new RCallException(exc);

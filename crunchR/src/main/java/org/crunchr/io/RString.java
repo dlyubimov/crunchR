@@ -6,6 +6,10 @@ import java.nio.ByteBuffer;
 import org.crunchr.RType;
 
 public class RString implements RType<String> {
+    
+    private static final RString singleton = new RString();
+    
+    public static RString getInstance() { return singleton; }
 
 	@Override
 	public void set(ByteBuffer buffer, String src) throws IOException {

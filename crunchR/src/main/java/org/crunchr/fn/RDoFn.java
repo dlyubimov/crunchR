@@ -7,6 +7,7 @@ import org.apache.crunch.Emitter;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.crunchr.RType;
 import org.crunchr.io.TwoWayRPipe;
+import org.crunchr.r.RController;
 
 /**
  * R's doFn
@@ -24,6 +25,7 @@ public class RDoFn<S, T> extends DoFn<S, T> {
 
     protected byte[]                rInitializeFun, rCleanupFun, rProcessFun;
     protected String                srtypeClassName, trtypeClassName;
+    protected String                srtypeJavaClassName, trtypeJavaClassName;
 
     protected transient TwoWayRPipe rpipe;
     protected transient int         doFnRef;
@@ -74,6 +76,16 @@ public class RDoFn<S, T> extends DoFn<S, T> {
     public String[] getRTypeClassNames() {
         return new String[] { srtypeClassName, trtypeClassName };
     }
+    
+    public void setRTypeClassNames(String[] classNames) {
+        srtypeClassName=classNames[0];
+        trtypeClassName=classNames[1];
+    }
+    
+    public void setRTypeJavaClassNames(String[] classNames) { 
+        srtypeJavaClassName=classNames[0];
+        trtypeJavaClassName=classNames[1];
+    }
 
     public RType<S> getSRType() {
         return srtype;
@@ -90,8 +102,7 @@ public class RDoFn<S, T> extends DoFn<S, T> {
     @Override
     public void process(S src, Emitter<T> emitter) {
         try {
-            if (rpipe == null)
-                lazySetup(emitter);
+            this.emitter = emitter;
             rpipe.add(src, srtype, doFnRef);
         } catch (IOException exc) {
             // TODO: so what are we supposed to wrap it to in Crunch?
@@ -105,25 +116,36 @@ public class RDoFn<S, T> extends DoFn<S, T> {
         super.cleanup(emitter);
     }
 
-    /**
-     * we assume emitter doesn't change during all calls to
-     * {@link #process(Object, Emitter)}.
-     * 
-     * @param emitter
-     */
+    @Override
     @SuppressWarnings({ "unchecked", "rawtypes" })
-    protected void lazySetup(Emitter<T> emitter) throws IOException {
+    public void initialize() {
+        super.initialize();
         try {
             ClassLoader cloader = Thread.currentThread().getContextClassLoader();
-            Class<? extends RType> srtypeClass = cloader.loadClass(srtypeClassName).asSubclass(RType.class);
-            Class<? extends RType> trtypeClass = cloader.loadClass(trtypeClassName).asSubclass(RType.class);
+            Class<? extends RType> srtypeClass = cloader.loadClass(srtypeJavaClassName).asSubclass(RType.class);
+            Class<? extends RType> trtypeClass = cloader.loadClass(trtypeJavaClassName).asSubclass(RType.class);
             srtype = ReflectionUtils.newInstance(srtypeClass, getConfiguration());
             trtype = ReflectionUtils.newInstance(trtypeClass, getConfiguration());
-        } catch (ClassNotFoundException exc) {
-            throw new IOException(exc);
-        }
-        this.emitter = emitter;
 
+            /*
+             * for the purpose of evaluation of approach, we are going to make
+             * another assumption and assume that no initialize() is going to be
+             * called before any process() of any function. This, however, a
+             * more dangerous asumption in general case since Crunch may develop
+             * in ways that obviously do not hold this assumption true, or it
+             * may lazily delay function initalizations in some cases for the
+             * purposes of optimization or something. Going forward, we probably
+             */
+            RController rcontroller = RController.getInstance(getConfiguration());
+            rpipe = rcontroller.getRPipe();
+
+            rpipe.addDoFn(this);
+
+        } catch (ClassNotFoundException exc) {
+            throw new RuntimeException(exc);
+        } catch (IOException exc) {
+            throw new RuntimeException(exc);
+        }
     }
 
 }
