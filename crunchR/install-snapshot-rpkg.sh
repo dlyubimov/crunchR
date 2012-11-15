@@ -11,4 +11,6 @@ if [[ "$ver" == "" ]]; then
 fi
 
 
-R CMD REMOVE crunchR; { $MVN && R_COMPILE_PKGS=1 R CMD INSTALL --build target/crunchR-${ver}-rpkg; }
+R CMD REMOVE crunchR;  \
+$MVN &&  \
+R_COMPILE_PKGS=1 R CMD INSTALL --build target/crunchR-${ver}-rpkg; 

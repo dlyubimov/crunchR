@@ -20,10 +20,10 @@ public class RDoFnRType implements RType<RDoFn> {
     @Override
     public void set(ByteBuffer buffer, RDoFn src) throws IOException {
         SerializationHelper.setVarUint32(buffer, src.getDoFnRef());
-        RStrings.getInstance().set(buffer, src.getRTypeClassNames());
         RRaw.getInstance().set(buffer, src.getrInitializeFun());
         RRaw.getInstance().set(buffer, src.getrProcessFun());
         RRaw.getInstance().set(buffer, src.getrCleanupFun());
+        RStrings.getInstance().set(buffer, src.getRTypeClassNames());
 
     }
 

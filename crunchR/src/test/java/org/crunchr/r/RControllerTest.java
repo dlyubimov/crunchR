@@ -1,6 +1,10 @@
 package org.crunchr.r;
 
+import java.io.FileOutputStream;
+import java.nio.ByteBuffer;
+
 import org.crunchr.fn.RDoFn;
+import org.crunchr.fn.RDoFnRType;
 import org.crunchr.io.RString;
 import org.crunchr.io.TwoWayRPipe;
 import org.rosuda.JRI.REXP;
@@ -37,9 +41,20 @@ public class RControllerTest {
 
         RDoFn<String, String> simFun = new RDoFn<String, String>();
         simFun.setrProcessFun(fser[0]);
+        simFun.setDoFnRef(255);
         simFun.setRTypeClassNames(new String[] { "RString", "RString" });
         simFun.setRTypeJavaClassNames(new String[] { RString.class.getName(), RString.class.getName() });
 
+        // save the simfun R message for tests
+        RDoFnRType fnrtype = new RDoFnRType();
+        ByteBuffer buff = ByteBuffer.allocate(1<<10);
+        fnrtype.set(buff,simFun);
+        buff.flip();
+        FileOutputStream fos = new FileOutputStream("simfun.dat");
+        fos.getChannel().write(buff);
+        fos.close();
+        
+        
         TwoWayRPipe rpipe = rController.getRPipe();
         rpipe.start();
 

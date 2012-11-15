@@ -42,7 +42,10 @@ library(bitops)
 #' get variable length 32bit integer
 #' @return vector of 2 integers. 1st integer is the value. 
 #'  2nd value is number of bytes packed representation 
-#' was taking in the input buffer.
+#' was taking in the input buffer. We actually return 
+#' value as numeric because integer mode in R can't 
+#' represent 0xFFFFFFFF. on the java side, this would
+#' have been -1.
 .getVarUint32V1 <- function (rawbuff, offset = 1L ) {
 	l <- offset + 4L
 	if ( l > length(rawbuff) ) l <- length(rawbuff)
@@ -54,7 +57,7 @@ library(bitops)
 	if ( l > 1 ) 
 		r[1:l-1L] <- bitAnd(r[1:l-1L],0x7f)
 	
-	as.integer(c( sum(bitShiftL(r,7*(0:(length(r)-1)))), l))
+	c( sum(bitShiftL(r,7*(0:(length(r)-1)))), l)
 }
 
 

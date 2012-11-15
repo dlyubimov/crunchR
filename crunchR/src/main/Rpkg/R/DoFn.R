@@ -23,18 +23,28 @@ DoFnRType.get <- function (rawbuff,offset=1 ) {
 	fnRef <- .getVarUint32(rawbuff,offset)
 	offset <- offset + fnRef[2]
 	
+	f_init <- .unserializeFun(rawbuff,offset)
+	f_process <- .unserializeFun(rawbuff,f_init$offset)
+	f_cleanup <- .unserializeFun(rawbuff,f_process$offset)
+
+	offset <- f_cleanup$offset
+
 	typeClassNames <- RStrings.get(rawbuff,offset)
 	offset <- typeClassNames$offset
 	
-	f_init <- .unserializeFun(rawBuff,offset)
-	f_process <- .unserializeFun(rawBuff,f_init$offset)
-	f_cleanup <- .unserializeFun(rawBuff,f_process$offset)
-
-	offset <- f_cleanup$offset
-	
 	doFn <- crunchR.DoFn$new(f_process$value,f_init$value,f_cleanup$value)
+	doFn$doFnRef <- fnRef[1]
 	doFn$rpipe <- rpipe
-	doFn$rtypeClassNames <- typeClassNames$value
+	
+	
+	stopifnot ( length(typeClassNames$value)==2 )
+	
+	#DEBUG
+	#cat(typeClassNames$value)
+	
+	# RType classes must have default constructor for generic DoFn'ss
+	doFn$srtype <- getRefClass(typeClassNames$value[1])$new()
+	doFn$trtype <- getRefClass(typeClassNames$value[2])$new()
 	
 	list(value=doFn,offset=offset)
 }

@@ -17,13 +17,13 @@ public class RString implements RType<String> {
 		int len = bytesU8.length;
 		if (len != len << -Short.SIZE >>> -Short.SIZE)
 			throw new IOException("String too long");
-		buffer.putShort((short) len);
+		SerializationHelper.setVarUint32(buffer, len);
 		buffer.put(bytesU8);
 	}
 
 	@Override
 	public String get(ByteBuffer buffer, String holder) throws IOException {
-		int len = buffer.getShort() & 0xffff;
+	    int len = SerializationHelper.getVarUint32(buffer);
 		String str = new String(buffer.array(), buffer.position(), len, "utf-8");
 		buffer.position(buffer.position() + len);
 		return str;

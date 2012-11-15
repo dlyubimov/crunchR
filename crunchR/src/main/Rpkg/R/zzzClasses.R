@@ -24,8 +24,8 @@ crunchR.RString <- setRefClass("RString",contains = "RType",
 crunchR.RRaw <- setRefClass("RString",contains = "RType",
 		methods = list (
 				getJavaClassName = function () "org.crunchr.io.RRaw",
-				set = RString.set,
-				get = RString.get
+				set = RRaw.set,
+				get = RRaw.get
 		)
 )
 
@@ -42,7 +42,7 @@ crunchR.RStrings <- setRefClass("RStrings",contains = "RString",
 crunchR.DoFn <- setRefClass("DoFn",
 		fields = list(
 				rpipe="ANY",
-				doFnRef="integer",
+				doFnRef="numeric",
 				srtype="RType", 
 				trtype="RType",
 				FUN_INITIALIZE="function",

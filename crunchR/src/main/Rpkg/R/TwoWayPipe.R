@@ -8,7 +8,7 @@ TwoWayPipe.initialize <- function (jpipe ) {
 	
 	addDoFnFn <- crunchR.DoFn$new(function(x) .self$addDoFn(x))
 	addDoFnFn$srtype <- crunchR.DoFnRType$new(.self)
-	addDoFnFn$doFnRef <- -1L
+	addDoFnFn$doFnRef <- 0xFFFFFFFF
 	addDoFn(addDoFnFn)
 	
 	.crunchR$twoWayPipe <- .self
@@ -32,30 +32,35 @@ TwoWayPipe.addDoFn <- function (doFn) {
 
 TwoWayPipe.run <- function () {
 	repeat {
-		rawbuff <- jpipe$rcallbackNextBuff()
-		if ( is.null(rawbuff)) break
+		rawbuff <- .jcall(jpipe,"[B","rcallbackNextBuff")
+		if ( is.null(rawbuff) | length(rawbuff)==0) break
+		
 		dispatch(rawbuff)
-		jpipe$rcallbackBufferConsumed()
+		
+		.jcall(jpipe,"V","rcallbackBufferConsumed")
 	}
 }
+
 
 TwoWayPipe.dispatch <- function (rawbuff) {
 	stopifnot(mode(rawbuff)=="raw")
 	count <- .getShort(rawbuff)
-	offset <- 2L	
+	offset <- 3L	
 	i <- 1L
 	while (i <= count ) {
+		
 		doFnRef <- .getVarUint32(rawbuff,offset)
 		offset <- offset + doFnRef[2]
 		fnRefKey <- as.character(doFnRef[1])
 		
+		
 		srt <- srType[[fnRefKey]]
 		doFn <- doFnMap[[fnRefKey]]
-		
+
 		if ( is.null(srt) | is.null(doFn) )
-			stop ("unknown doFnRef or unitialized RType")
+			stop ("unknown doFnRef or unintialized RType")
 		
-		robj <- drt$get(rawbuff,offset)
+		robj <- srt$get(rawbuff,offset)
 		offset <- robj$offset
 		
 		# call doFn's process 

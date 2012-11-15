@@ -3,6 +3,7 @@ package org.crunchr.io;
 import java.io.IOException;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -45,7 +46,7 @@ public class TwoWayRPipe {
     /*
      * special message: add a do Fn to the R side
      */
-    private static final short    ADD_DO_FN        = (short) -1;
+    private static final int      ADD_DO_FN        = -1;
 
     private static final Logger   s_log            = Logger.getLogger("crunchR");
 
@@ -60,7 +61,7 @@ public class TwoWayRPipe {
     private final int             flushBufferCapacity;
     private Thread                rThread;
     private RCallException        lastErr;
-    
+
     @SuppressWarnings("rawtypes")
     private RType<RDoFn>          rDoFnType        = new RDoFnRType();
 
@@ -72,8 +73,14 @@ public class TwoWayRPipe {
         super();
         inBuffers =
             new ByteBuffer[] { ByteBuffer.allocate(initialCapacity + 2), ByteBuffer.allocate(initialCapacity + 2) };
-        for (ByteBuffer bb : inBuffers)
+        /*
+         * it is actually more convenient to work with LE byte order on the R side, so 
+         * we enforce LE here. 
+         */
+        for (ByteBuffer bb : inBuffers) { 
+            bb.order(ByteOrder.LITTLE_ENDIAN);
             resetBuffer(bb);
+        }
         availableOutBuffers = inBuffers.length;
 
         inQueue = new ArrayBlockingQueue<byte[]>(inBuffers.length);
@@ -84,13 +91,13 @@ public class TwoWayRPipe {
 
     }
 
-    public void addDoFn(RDoFn<?, ?> doFn) throws IOException { 
-        int doFnRef = doFnMap.size()+1;
+    public void addDoFn(RDoFn<?, ?> doFn) throws IOException {
+        int doFnRef = doFnMap.size() + 1;
         doFnMap.put(doFnRef, doFn);
         doFn.setDoFnRef(doFnRef);
-        
-        // ... dispatch function addition to the R side 
-        add(doFn,rDoFnType, ADD_DO_FN);
+
+        // ... dispatch function addition to the R side
+        add(doFn, rDoFnType, ADD_DO_FN);
     }
 
     public <S> void add(S value, RType<S> rtype, int doFnRef) throws IOException {
