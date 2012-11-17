@@ -12,7 +12,7 @@ import org.crunchr.RType;
  * @author dmitriy
  * 
  */
-public class RRaw implements RType<byte[]> {
+public class RRaw extends RType<byte[]> {
 
     private static final RRaw singleton = new RRaw();
 

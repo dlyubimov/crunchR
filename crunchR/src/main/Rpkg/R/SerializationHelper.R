@@ -68,3 +68,14 @@ library(bitops)
 
 .setVarUint32 <- .setVarUint32V1 
 .getVarUint32 <- .getVarUint32V1
+
+.setVarInt32 <- function (x) {
+	.setVarUint32(bitXor(bitShiftL(x,1),(sign(x)<0)*0xFFFFffff))
+}
+
+.getVarInt32 <- function (rawbuff, offset=1L) {
+	r <- .getVarUint32(rawbuff,offset)
+	neg <- bitAnd(r[1],1)!=0
+	r[1]<- bitShiftR(bitXor(r[1],0xFFFFffff*neg),1)-neg*0x80000000
+	r
+}

@@ -1,4 +1,8 @@
 
+# We probably should be doing a lot of this serialization code in Rcpp.
+# it is ok for prototyping purposes though.
+
+
 #' get
 #' 
 #' @returns list l: l$value is the R object, l$offset next offset to use.
@@ -10,8 +14,8 @@ RString.get <- function (rawbuff, offset = 1 ) {
 		value <- (character(0))
 	} else { 
 		value <- iconv(list(rawbuff[offset:(offset+len[1]-1)]),from="UTF8")[[1]]
-		list(value=,offset=offset+len[1])
 	}
+	list(value=value,offset=offset+len[1])
 }
 
 RString.set <- function (value ) {
@@ -32,12 +36,45 @@ RRaw.get <- function (rawbuff,offset=1) {
 	list(value=value,offset=offset+len[1])
 }
 
-
 RRaw.set <- function (value) {
 	stopifnot (class(value)=="raw")
 	len <- .setVarUint32(length(value))
 	c(len,value)
 }
+
+RVarUint32.get <- function (rawbuff,offset=1 ) {
+	val <- .getVarUint32(rawbuff,offset)
+	list(value=val[1],offset=offset+val[2])
+}
+
+RVarUint32.set <- function (value ) {
+	.setVarUint32(value)
+}
+
+RVarInt32.get <- function (rawbuff,offset=1 ) {
+	val <- .getVarInt32(rawbuff,offset)
+	list(value=val[1],offset=offset+val[2])
+}
+
+RVarInt32.set <- function (value ) {
+	.setVarInt32(value)
+}
+
+RUint32.get <- function (rawbuff,offset=1 ) {
+	sum(bitShiftL(as.numeric(rawbuff[offset:(offset+3)]),(0:3)*8))
+}
+
+RUint32.set <- function ( value ) { 
+	as.raw(bitAnd(0xff, bitShiftR(value,(0:3)*8)))
+}
+
+RInt32.get <- function (rawbuff,offset=1 ) {
+	r <- RUint32.get(rawbuff,offset)
+	if (r>=0x80000000 ) r<- r - 0x100000000
+	r
+}
+
+RInt32.set <- function ( value ) RUint32.set(value)
 
 
 RStrings.get <- function (rawbuff, offset = 1 ) {
@@ -78,7 +115,6 @@ RStrings.set <- function (value ) {
 	}
 	r
 }
-
 
 
 #' unserialize a function packed using RRaw RType

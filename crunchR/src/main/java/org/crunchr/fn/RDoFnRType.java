@@ -15,21 +15,47 @@ import org.crunchr.io.SerializationHelper;
  * 
  */
 @SuppressWarnings("rawtypes")
-public class RDoFnRType implements RType<RDoFn> {
+public class RDoFnRType extends RType<RDoFn> {
+
+    /*
+     * This is by far a stateless flyweight.. so we can use singleton pattern to
+     * serve all
+     */
+    private static RDoFnRType singleton = new RDoFnRType();
+
+    public static RDoFnRType getInstance() {
+        return singleton;
+    }
 
     @Override
     public void set(ByteBuffer buffer, RDoFn src) throws IOException {
+        RRaw rawType = RRaw.getInstance();
+
         SerializationHelper.setVarUint32(buffer, src.getDoFnRef());
-        RRaw.getInstance().set(buffer, src.getrInitializeFun());
-        RRaw.getInstance().set(buffer, src.getrProcessFun());
-        RRaw.getInstance().set(buffer, src.getrCleanupFun());
+        rawType.set(buffer, src.getrInitializeFun());
+        rawType.set(buffer, src.getrProcessFun());
+        rawType.set(buffer, src.getrCleanupFun());
         RStrings.getInstance().set(buffer, src.getRTypeClassNames());
 
     }
 
     @Override
     public RDoFn get(ByteBuffer buffer, RDoFn holder) throws IOException {
-        throw new UnsupportedOperationException();
+        RRaw rawType = RRaw.getInstance();
+        RStrings stringsType = RStrings.getInstance();
+        if (holder == null)
+            holder = new RDoFn();
+
+        RDoFn doFn = holder;
+        doFn.setDoFnRef(SerializationHelper.getVarUint32(buffer));
+
+        doFn.setrInitializeFun(rawType.get(buffer, null));
+        doFn.setrProcessFun(rawType.get(buffer, null));
+        doFn.setrCleanupFun(rawType.get(buffer, null));
+        doFn.setRTypeClassNames(stringsType.get(buffer, null));
+        doFn.setRTypeJavaClassNames(stringsType.get(buffer, null));
+
+        return doFn;
     }
 
 }

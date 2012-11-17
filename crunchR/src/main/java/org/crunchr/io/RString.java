@@ -5,7 +5,7 @@ import java.nio.ByteBuffer;
 
 import org.crunchr.RType;
 
-public class RString implements RType<String> {
+public class RString extends RType<String> {
     
     private static final RString singleton = new RString();
     

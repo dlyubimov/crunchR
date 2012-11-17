@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import org.crunchr.RType;
@@ -41,43 +42,53 @@ import org.crunchr.r.RController;
  */
 public class TwoWayRPipe {
 
-    private static final int      MAXINBUFCAPACITY = 1 << 12;
+    private static final int      MAXINBUFCAPACITY   = 1 << 12;
 
     /*
      * special message: add a do Fn to the R side
      */
-    private static final int      ADD_DO_FN        = -1;
+    public static final int       ADD_DO_FN          = -1;
+    public static final int       CLEANUP_FN         = -2;
 
-    private static final Logger   s_log            = Logger.getLogger("crunchR");
+    private static final Logger   s_log              = Logger.getLogger("crunchR");
 
     private ByteBuffer            inBuffers[];
     private BlockingQueue<byte[]> inQueue;
     private BlockingQueue<byte[]> outQueue;
     private boolean               outClosed;
     // private Rengine rengine;
-    private int                   inBuffer         = 0;
-    private int                   inCount          = 0;
+    private int                   inBuffer           = 0;
+    private int                   inCount            = 0;
     private int                   availableOutBuffers;
     private final int             flushBufferCapacity;
     private Thread                rThread;
     private RCallException        lastErr;
 
     @SuppressWarnings("rawtypes")
-    private RType<RDoFn>          rDoFnType        = new RDoFnRType();
+    private RType<RDoFn>          rDoFnType          = new RDoFnRType();
 
     @SuppressWarnings("rawtypes")
-    private Map<Integer, RDoFn>   doFnMap          = new HashMap<Integer, RDoFn>();
-    private Map<Integer, Object>  outHolders       = new HashMap<Integer, Object>();
+    private Map<Integer, RDoFn>   doFnMap            = new HashMap<Integer, RDoFn>();
+    private Map<Integer, Object>  outHolders         = new HashMap<Integer, Object>();
+
+    /*
+     * 5 minutes max wait to close input queue by default
+     */
+    private int                   inputQueueMaxWait  = 6 * 5;
+    /*
+     * 5 minutes max wait to close output queue by default
+     */
+    private int                   outputQueueMaxWait = 60 * 5;
 
     public TwoWayRPipe(int initialCapacity, RController controller) throws IOException, RCallException {
         super();
         inBuffers =
             new ByteBuffer[] { ByteBuffer.allocate(initialCapacity + 2), ByteBuffer.allocate(initialCapacity + 2) };
         /*
-         * it is actually more convenient to work with LE byte order on the R side, so 
-         * we enforce LE here. 
+         * it is actually more convenient to work with LE byte order on the R
+         * side, so we enforce LE here.
          */
-        for (ByteBuffer bb : inBuffers) { 
+        for (ByteBuffer bb : inBuffers) {
             bb.order(ByteOrder.LITTLE_ENDIAN);
             resetBuffer(bb);
         }
@@ -87,6 +98,14 @@ public class TwoWayRPipe {
         outQueue = new ArrayBlockingQueue<byte[]>(2);
 
         flushBufferCapacity = MAXINBUFCAPACITY;
+
+        /*
+         * special function: processing cleanup receipts
+         */
+        CleanupDoFn cleanupDoFn = new CleanupDoFn();
+        cleanupDoFn.setRpipe(this);
+        doFnMap.put(CLEANUP_FN, cleanupDoFn);
+
         controller.evalWithMethodArgs("crunchR.rpipe <- crunchR.TwoWayPipe$new", this);
 
     }
@@ -95,6 +114,7 @@ public class TwoWayRPipe {
         int doFnRef = doFnMap.size() + 1;
         doFnMap.put(doFnRef, doFn);
         doFn.setDoFnRef(doFnRef);
+        doFn.setRpipe(this);
 
         // ... dispatch function addition to the R side
         add(doFn, rDoFnType, ADD_DO_FN);
@@ -106,7 +126,7 @@ public class TwoWayRPipe {
         ByteBuffer bb = inBuffers[inBuffer];
         while (true)
             try {
-                SerializationHelper.setVarUint32(bb, doFnRef);
+                SerializationHelper.setVarInt32(bb, doFnRef);
                 rtype.set(inBuffers[inBuffer], value);
                 inCount++;
                 break;
@@ -116,14 +136,14 @@ public class TwoWayRPipe {
                     continue;
                 } else {
                     bb.position(position);
-                    flushOutBuffer();
+                    flushInput();
                     bb = inBuffers[inBuffer];
                     position = bb.position();
                     continue;
                 }
             }
         if (inCount == 0x7FFF || inBuffers[inBuffer].position() >= flushBufferCapacity)
-            flushOutBuffer();
+            flushInput();
     }
 
     /**
@@ -133,7 +153,7 @@ public class TwoWayRPipe {
      * @throws IOException
      */
     public void closeInput() throws IOException {
-        flushOutBuffer();
+        flushInput();
         sendClose();
     }
 
@@ -207,6 +227,15 @@ public class TwoWayRPipe {
     }
 
     /**
+     * Not thread-safe call. but should be no problem for single-threaded MR
+     * tasks.
+     */
+    public void startIfNotStarted() {
+        if (rThread == null)
+            start();
+    }
+
+    /**
      * BIG WARNING: this starts pipe on the R side. It means that R will keep
      * scanning for incoming messages or shutdown requests and new R calls will
      * not be available until the pipe is shut down.
@@ -238,7 +267,7 @@ public class TwoWayRPipe {
 
     public void shutdown(boolean waitClose) throws IOException {
         closeInput();
-        closeOutput(false);
+        closeOutput(waitClose);
         try {
             if (waitClose)
                 rThread.join();
@@ -249,12 +278,92 @@ public class TwoWayRPipe {
         }
     }
 
-    private static void resetBuffer(ByteBuffer buffer) {
-        buffer.clear();
-        buffer.position(2);
+    /**
+     * checks output queue, non-blocking fashion.
+     * 
+     * @return true if ok, false if output end was closd.
+     * @throws IOException
+     */
+    public boolean checkOutputQueue(boolean wait) throws IOException {
+        if (outClosed)
+            return false;
+        byte[] emitBuff;
+        try {
+            for (;;) {
+
+                int secondsWaited = 0;
+                int waitTime = 20;
+                while (null == (emitBuff = wait ? outQueue.poll(waitTime, TimeUnit.SECONDS) : outQueue.poll())) {
+                    if (!wait)
+                        return true;
+                    secondsWaited += waitTime;
+                    if (secondsWaited >= outputQueueMaxWait)
+                        throw new IOException("R side is not responding in the maximum amount of time allowed.");
+                    if (!rThread.isAlive()) {
+
+                        throw lastErr != null ? new IOException("R side exited prematurely", lastErr)
+                            : new IOException("R side exited prematurely (no errors were captured)");
+                    }
+                }
+
+                ByteBuffer bb = ByteBuffer.wrap(emitBuff).order(ByteOrder.LITTLE_ENDIAN);
+                if (bb.remaining() == 0) {
+                    outClosed = true;
+                    return false;
+                }
+                int n = bb.getShort();
+
+                for (int i = 0; i < n; i++) {
+                    Object holder = null;
+                    int doFnRef = SerializationHelper.getVarInt32(bb);
+
+                    @SuppressWarnings("unchecked")
+                    RDoFn<Object, Object> rDoFn = doFnMap.get(doFnRef);
+                    if (rDoFn == null) {
+                        throw new IOException("Unknown doFnRef:" + doFnRef);
+                    }
+
+                    RType<Object> trtype = rDoFn.getTRType();
+                    boolean multiEmit = trtype.isMultiEmit();
+                    boolean doSave = false;
+
+                    if (!multiEmit) {
+                        holder = outHolders.get(doFnRef);
+                        doSave = holder == null;
+                    }
+                    holder = trtype.get(bb, holder);
+                    if (holder != null) {
+                        if (trtype.isMultiEmit()) {
+                            /*
+                             * we don't want to keep array as a holder around.
+                             * so we don't put it back to the outHolder reusable
+                             * collection. Not sure if it was worth the trouble
+                             * in the first place, but some small items such as
+                             * ints, it would...
+                             */
+                            for (Object item : (Object[]) holder) {
+                                rDoFn.getEmitter().emit(item);
+                            }
+                        } else {
+                            if (doSave) {
+                                outHolders.put(doFnRef, holder);
+                            }
+                            rDoFn.getEmitter().emit(holder);
+                        }
+                    }
+
+                }
+            }
+        } catch (InterruptedException e) {
+            throw new IOException("Interrupted", e);
+        }
     }
 
-    private void flushOutBuffer() throws IOException {
+    public RDoFn<?, ?> findDoFn(int doFnRef) {
+        return doFnMap.get(doFnRef);
+    }
+
+    public void flushInput() throws IOException {
 
         ByteBuffer bb = inBuffers[inBuffer];
         if (bb.position() == 2)
@@ -268,7 +377,8 @@ public class TwoWayRPipe {
             availableOutBuffers--;
         }
         try {
-            inQueue.put(bb.array());
+            if (!inQueue.offer(bb.array(), inputQueueMaxWait, TimeUnit.SECONDS))
+                throw new IOException("Unable to flush input queue and maximum timeout expred.");
             /*
              * wait until at least one buffer is available again
              */
@@ -283,58 +393,17 @@ public class TwoWayRPipe {
         }
     }
 
+    private static void resetBuffer(ByteBuffer buffer) {
+        buffer.clear();
+        buffer.position(2);
+    }
+
     private void sendClose() throws IOException {
         try {
             inQueue.put(new byte[0]);
         } catch (InterruptedException e) {
             throw new IOException("Interrupted", e);
         }
-    }
-
-    /**
-     * checks output queue, non-blocking fashion.
-     * 
-     * @return true if ok, false if output end was closd.
-     * @throws IOException
-     */
-    private boolean checkOutputQueue(boolean waitClose) throws IOException {
-        if (outClosed)
-            return false;
-        byte[] emitBuff;
-        try {
-            while (null != (emitBuff = waitClose ? outQueue.take() : outQueue.poll())) {
-                ByteBuffer bb = ByteBuffer.wrap(emitBuff);
-                int n = bb.getShort();
-                if (n == 0) {
-                    outClosed = true;
-                    return false;
-                }
-
-                Object holder = null;
-                for (int i = 0; i < n; i++) {
-                    int doFnRef = SerializationHelper.getVarUint32(bb);
-
-                    @SuppressWarnings("unchecked")
-                    RDoFn<Object, Object> rDoFn = doFnMap.get(doFnRef);
-                    if (rDoFn == null) {
-                        throw new IOException("Unknown doFnRef:" + doFnRef);
-                    }
-
-                    RType<Object> trtype = rDoFn.getTRType();
-                    holder = outHolders.get(doFnRef);
-                    boolean doSave = holder == null;
-                    holder = trtype.get(bb, holder);
-                    if (doSave) {
-                        outHolders.put(doFnRef, holder);
-                    }
-                    rDoFn.getEmitter().emit(holder);
-
-                }
-            }
-        } catch (InterruptedException e) {
-            throw new IOException("Interrupted", e);
-        }
-        return true;
     }
 
 }

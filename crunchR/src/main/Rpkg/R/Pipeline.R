@@ -12,7 +12,7 @@ Pipeline.initialize <- function (jpipeline = NULL) {
 }
 
 Pipeline.getConfiguration <- function () {
-	.jcall(jobj,"org/apache/hadoop/conf/Configuraton;","getConfiguration")
+	.jcall(jobj,"Lorg/apache/hadoop/conf/Configuration;","getConfiguration")
 }
 
 MRPipeline.initialize <- function (name = "crunchR-pipe") {
@@ -37,7 +37,7 @@ MRPipeline.run <- function () {
 	' 
 	
 	.equipWithJobJars(.self)
-	jpr <- .jcall(jobj,"org/apache/crunch/PipelineResult;","run")
+	jpr <- .jcall(jobj,"Lorg/apache/crunch/PipelineResult;","run")
 	crunchR.PipelineResult$new (jpr)
 }
 
@@ -45,50 +45,17 @@ MRPipeline.run <- function () {
 	jConf <- mrPipeline$getConfiguration()
 	stopifnot (!is.null(jConf))
 	
-	sapply(.crunchR$cp,function (jarPath) {
+	# we also need standard rJava/jri stuff here. Mostly, jri.
+	libFiles <- c(.crunchR$cp,
+			list.files(system.file("jri",package="rJava"),pattern="\\.jar$", full.names=T))
+	
+	sapply(libFiles,function (jarPath) {
 				file <- new( .crunchR$FileJClass, jarPath )
-				.jcall(.crunchR$DistCacheJClass,"addJarToDistributedCache", jConf, file)
+				.jcall(.crunchR$DistCacheJClass,"V","addJarToDistributedCache", jConf, file)
 			})	
 	NULL
 }		
 
 
-#'
-#' crunchR's pipeline R5 class wrapper
-#' 
-crunchR.Pipeline <- setRefClass("Pipeline", 
-		fields = list( 
-				jobj = "jobjRef"
-		),
-		methods = list(
-				initialize = Pipeline.initialize,
-				getConfiguration = Pipeline.getConfiguration
-		)
-)
 
-#'
-#' crunchR's MRPipeline R5 class wrapper
-#' 
-crunchR.MRPipeline <- setRefClass("MRPipeline", contains=crunchR.Pipeline,
-		methods = list (
-				initialize = MRPipeline.initialize,
-				run = MRPipeline.run
-		)
-)
-
-#'
-#' PipelineResult R5 class
-#' 
-crunchR.PipelineResult <- setRefClass("PipelineResult",
-		fields = list( 
-				jobj = "jobjRef"
-		),
-		methods = list (
-				initialize = function( jpipelineResult ) {
-					stopifnot (is(jpipelineResult,"jobjRef") & 
-									jpipelineResult %instanceof% .crunchR$PipelineResultJClass)
-					jobj <<- jpipelineResult
-				}
-		)
-)
 

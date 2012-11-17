@@ -13,29 +13,43 @@ import org.apache.hadoop.io.Writable;
  * 
  * @param <T>
  */
-public interface RType<T> {
-	/**
-	 * serialize given instance into the byte buffer.
-	 * 
-	 * @param buffer
-	 *            the receiving storage
-	 * @param src
-	 *            the object to be serialized
-	 */
-	void set(ByteBuffer buffer, T src) throws IOException;
+public abstract class RType<T> {
+    /**
+     * serialize given instance into the byte buffer.
+     * 
+     * @param buffer
+     *            the receiving storage
+     * @param src
+     *            the object to be serialized
+     */
+    abstract public void set(ByteBuffer buffer, T src) throws IOException;
 
-	/**
-	 * deserializes the instance of <code>T</code>
-	 * 
-	 * @param buffer
-	 * @param value
-	 *            holder. Optional. If supplied and supported (like in case of
-	 *            {@link Writable}) then it is filled with the value and
-	 *            returned as deserialized result.
-	 * 
-	 * @return the deserialized instance of <code>T</code>.
-	 * 
-	 */
-	T get(ByteBuffer buffer, T holder) throws IOException;
+    /**
+     * deserializes the instance of <code>T</code>
+     * 
+     * @param buffer
+     * @param value
+     *            holder. Optional. If supplied and supported (like in case of
+     *            {@link Writable}) then it is filled with the value and
+     *            returned as deserialized result.
+     * 
+     * @return the deserialized instance of <code>T</code>.
+     * 
+     */
+    abstract public T get(ByteBuffer buffer, T holder) throws IOException;
 
+    /**
+     * 
+     * If type is "multiemit", the convention is that T is actually array of
+     * elements (i.e. <code>T extends Object[]</code>). It also mean that each
+     * array element will be output separately by the pipe.
+     * <P>
+     * 
+     * @return true if we want to emit each value in a vector as a separate
+     *         value.
+     * 
+     */
+    public boolean isMultiEmit() {
+        return false;
+    }
 }

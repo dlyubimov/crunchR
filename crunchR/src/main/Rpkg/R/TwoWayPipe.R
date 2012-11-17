@@ -1,15 +1,37 @@
 
 TwoWayPipe.ADD_DO_FN = -1;
 
-TwoWayPipe.initialize <- function (jpipe ) { 
+TwoWayPipe.initialize <- function (jpipe, outputBuffCapacity = 4096 ) { 
 	
 	jpipe <<- jpipe
 	doFnMap <<- list()
 	
-	addDoFnFn <- crunchR.DoFn$new(function(x) .self$addDoFn(x))
+	# special function #1: create another serialized DoFn instance.
+	addDoFnFn <- crunchR.DoFn$new(function(doFn) .self$addDoFn(doFn) )
 	addDoFnFn$srtype <- crunchR.DoFnRType$new(.self)
-	addDoFnFn$doFnRef <- 0xFFFFFFFF
+	addDoFnFn$doFnRef <- -1
 	addDoFn(addDoFnFn)
+	
+	# special function #2: computational cleanup of doFns: 
+	cleanupDoFn <- crunchR.DoFn$new(function(fnRef){
+				doFn <- .self$doFnMap[[as.character(fnRef)]]
+				if ( is.null(doFn))
+					stop(sprintf("Unknown doFnRef %d.",x))
+				doFn$callCleanup()
+				emit(fnRef)
+				.self$flushOutput()
+			},
+			customizeEnv=T
+	)
+	cleanupDoFn$srtype <- crunchR.RVarInt32$new()
+	cleanupDoFn$trtype <- crunchR.RVarInt32$new()
+	cleanupDoFn$doFnRef <- -2
+	addDoFn(cleanupDoFn)
+	
+	outputBuffCapacity <<- outputBuffCapacity
+	outputBuff <<- raw(outputBuffCapacity)
+	outputBuffOffset <<- 1
+	outputMsgCnt <<- 0
 	
 	.crunchR$twoWayPipe <- .self
 }
@@ -28,6 +50,8 @@ TwoWayPipe.addDoFn <- function (doFn) {
 	doFnMap[[fnRefKey]] <<- doFn
 	srType[[fnRefKey]] <<- doFn$getSRType()
 	trType[[fnRefKey]] <<- doFn$getTRType()
+	doFn$rpipe <- .self
+	doFn$callInitialize()
 }
 
 TwoWayPipe.run <- function () {
@@ -49,7 +73,7 @@ TwoWayPipe.dispatch <- function (rawbuff) {
 	i <- 1L
 	while (i <= count ) {
 		
-		doFnRef <- .getVarUint32(rawbuff,offset)
+		doFnRef <- .getVarInt32(rawbuff,offset)
 		offset <- offset + doFnRef[2]
 		fnRefKey <- as.character(doFnRef[1])
 		
@@ -64,13 +88,45 @@ TwoWayPipe.dispatch <- function (rawbuff) {
 		offset <- robj$offset
 		
 		# call doFn's process 
-		doFn$FUN_PROCESS(x=robj$value)
+		doFn$callProcess(robj$value)
 		
 		i <- i + 1L
 	}
+	closeOutput()
+}
+
+TwoWayPipe.emit <- function (x,doFn) {
+	if ( outputBuffOffset >= outputBuffCapacity ) flushOutput()
+	packedEmission <- doFn$trtype$set(x)
+	
+	# 1. writing function reference
+	fnRef <- .setVarInt32(doFn$doFnRef)
+	fnRefLen <- length(fnRef)
+	outputBuff[outputBuffOffset:(outputBuffOffset+fnRefLen-1)]<<-fnRef
+	outputBuffOffset <<- outputBuffOffset+fnRefLen
+	
+	# 2. writing emited value
+	len <- length(packedEmission)
+	outputBuff[outputBuffOffset:(outputBuffOffset+len-1)] <<- packedEmission
+	outputBuffOffset <<- outputBuffOffset + len
+	
+	outputMsgCnt <<- outputMsgCnt + 1
+}
+
+TwoWayPipe.flushOutput <- function() {
+	if ( outputMsgCnt == 0 ) return()
+	cntRaw <- .setShort(outputMsgCnt)
+	.jcall(jpipe,"V","rcallbackEmitBuffer",c(cntRaw,outputBuff[1:outputBuffOffset-1]))
+	outputBuffOffset <<- 1
+	outputMsgCnt <<- 0
 	
 }
 
+TwoWayPipe.closeOutput <- function ()  {
+	flushOutput()
+	.jcall(jpipe,"V","rcallbackEmitBuffer",raw(0))
+	
+}
 
 
 

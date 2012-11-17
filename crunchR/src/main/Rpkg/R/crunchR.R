@@ -75,7 +75,9 @@ NULL
 	.crunchR$PipelineResultJClass <- J("org/apache/crunch/PipelineResult")
 	.crunchR$MRPipelineJClass <- J("org/apache/crunch/impl/mr/MRPipeline")
 	.crunchR$DistCacheJClass <- J("org/apache/crunch/util/DistCache")
+	.crunchR$TextFileTargetJClass <- J("org/apache/crunch/io/text/TextFileTarget")
 	.crunchR$FileJClass <- J("java/io/File")
+	.crunchR$RDoFnJClass <- J("org/crunchr/fn/RDoFn")
 	
 	#finding job jar 
 #	crunchR <<- crunchR

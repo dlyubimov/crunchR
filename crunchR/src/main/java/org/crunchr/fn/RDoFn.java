@@ -1,11 +1,13 @@
 package org.crunchr.fn;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 import org.apache.crunch.DoFn;
 import org.apache.crunch.Emitter;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.crunchr.RType;
+import org.crunchr.io.RVarInt32;
 import org.crunchr.io.TwoWayRPipe;
 import org.crunchr.r.RController;
 
@@ -32,6 +34,17 @@ public class RDoFn<S, T> extends DoFn<S, T> {
     protected transient RType<S>    srtype;
     protected transient RType<T>    trtype;
     protected transient Emitter<T>  emitter;
+    protected transient boolean     cleaned;
+
+    /**
+     * deserializing factory method
+     * 
+     * @return doFn
+     */
+    @SuppressWarnings("rawtypes")
+    public static RDoFn fromBytes(byte[] bytes) throws IOException {
+        return RDoFnRType.getInstance().get(ByteBuffer.wrap(bytes), null);
+    }
 
     public byte[] getrInitializeFun() {
         return rInitializeFun;
@@ -76,15 +89,15 @@ public class RDoFn<S, T> extends DoFn<S, T> {
     public String[] getRTypeClassNames() {
         return new String[] { srtypeClassName, trtypeClassName };
     }
-    
+
     public void setRTypeClassNames(String[] classNames) {
-        srtypeClassName=classNames[0];
-        trtypeClassName=classNames[1];
+        srtypeClassName = classNames[0];
+        trtypeClassName = classNames[1];
     }
-    
-    public void setRTypeJavaClassNames(String[] classNames) { 
-        srtypeJavaClassName=classNames[0];
-        trtypeJavaClassName=classNames[1];
+
+    public void setRTypeJavaClassNames(String[] classNames) {
+        srtypeJavaClassName = classNames[0];
+        trtypeJavaClassName = classNames[1];
     }
 
     public RType<S> getSRType() {
@@ -97,6 +110,14 @@ public class RDoFn<S, T> extends DoFn<S, T> {
 
     public Emitter<T> getEmitter() {
         return emitter;
+    }
+
+    public boolean isCleaned() {
+        return cleaned;
+    }
+
+    public void setCleaned(boolean cleaned) {
+        this.cleaned = cleaned;
     }
 
     @Override
@@ -113,7 +134,32 @@ public class RDoFn<S, T> extends DoFn<S, T> {
 
     @Override
     public void cleanup(Emitter<T> emitter) {
-        super.cleanup(emitter);
+        try {
+            /*
+             * ad cleanup message for our function to the input queue
+             */
+            rpipe.add(doFnRef, RVarInt32.getInstance(), TwoWayRPipe.CLEANUP_FN);
+            /*
+             * flush/dispatch input buffer (since we are trying to wait till R
+             * side definitely has processed the cleanup. Indeed, cleanup on R
+             * side may cause some emitter flushing too, so we have to make sure
+             * everything is emited and R side cleanup is finalized before we we
+             * confirm this function is completely done, back to Crunch.
+             */
+            rpipe.flushInput();
+            /*
+             * wait till our R counterpart finishes all the things it still
+             * wanted to finish...
+             */
+            while (!cleaned)
+                rpipe.checkOutputQueue(true);
+            /*
+             * after we got a receipt of cleanup activity for this function from
+             * the R side, we can confirm the same to Crunch now and exit.
+             */
+        } catch (IOException exc) {
+            throw new RuntimeException(exc);
+        }
     }
 
     @Override
@@ -138,6 +184,7 @@ public class RDoFn<S, T> extends DoFn<S, T> {
              */
             RController rcontroller = RController.getInstance(getConfiguration());
             rpipe = rcontroller.getRPipe();
+            rpipe.startIfNotStarted();
 
             rpipe.addDoFn(this);
 

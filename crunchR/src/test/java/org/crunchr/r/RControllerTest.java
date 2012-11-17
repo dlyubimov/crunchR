@@ -21,7 +21,7 @@ public class RControllerTest {
 
     }
 
-    @Test
+    @Test(enabled = true)
     public void test2() throws Exception {
         RController rController = RController.getInstance(null);
 
