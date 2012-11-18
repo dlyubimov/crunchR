@@ -4,7 +4,6 @@
 #' @name crunchR
 #' @exportPattern "^crunchR\\."
 #' @import rJava
-#' #import RProtoBuf
 #' 
 #' @include zzzClasses.R
 #' @include Pipeline.R
