@@ -64,9 +64,11 @@
 			</activation>
 
 			<properties>
-				<crunch-version>0.4.0-incubating-SNAPSHOT</crunch-version>
+				<crunch-version>0.4.0-incubating</crunch-version>
+				<hadoop-version>1.0.4</hadoop-version>
 				<rJava-version>0.9-3</rJava-version>
 				<protobuf-version>2.4.1</protobuf-version>
+				<testng-version>5.11</testng-version>
 			</properties>
 		</profile>
 
@@ -178,6 +180,13 @@
 			</dependency>
 
 
+			<!-- Hadoop stuff -->
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-client</artifactId>
+				<version>${hadoop-version}</version>
+			</dependency>
+
 			<!-- R stuff -->
 			<dependency>
 				<groupId>org.r-project</groupId>
@@ -196,7 +205,7 @@
 				<groupId>org.testng</groupId>
 				<artifactId>testng</artifactId>
 				<classifier>jdk15</classifier>
-				<version>5.11</version>
+				<version>${testng-version}</version>
 			</dependency>
 
 		</dependencies>
