@@ -143,7 +143,7 @@ public class RDoFn<S, T> extends DoFn<S, T> {
              * flush/dispatch input buffer (since we are trying to wait till R
              * side definitely has processed the cleanup. Indeed, cleanup on R
              * side may cause some emitter flushing too, so we have to make sure
-             * everything is emited and R side cleanup is finalized before we we
+             * everything is emitted and R side cleanup is finalized before we we
              * confirm this function is completely done, back to Crunch.
              */
             rpipe.flushInput();
@@ -177,9 +177,9 @@ public class RDoFn<S, T> extends DoFn<S, T> {
              * for the purpose of evaluation of approach, we are going to make
              * another assumption and assume that no initialize() is going to be
              * called before any process() of any function. This, however, a
-             * more dangerous asumption in general case since Crunch may develop
+             * more dangerous assumption in general case since Crunch may develop
              * in ways that obviously do not hold this assumption true, or it
-             * may lazily delay function initalizations in some cases for the
+             * may lazily delay function initializations in some cases for the
              * purposes of optimization or something. Going forward, we probably
              */
             RController rcontroller = RController.getInstance(getConfiguration());

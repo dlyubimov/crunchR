@@ -12,6 +12,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import org.crunchr.RType;
+import org.crunchr.fn.CleanupDoFn;
 import org.crunchr.fn.RDoFn;
 import org.crunchr.fn.RDoFnRType;
 import org.crunchr.r.RCallException;

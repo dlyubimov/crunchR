@@ -2,8 +2,4 @@ package crunchR;
 option java_package= "org.crunchr.proto.codegen";
 option optimize_for = SPEED;
 
-message PayloadItem {
-
-}
-
 

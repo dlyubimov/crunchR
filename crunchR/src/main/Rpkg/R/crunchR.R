@@ -4,7 +4,7 @@
 #' @name crunchR
 #' @exportPattern "^crunchR\\."
 #' @import rJava
-#' @import RProtoBuf
+#' #import RProtoBuf
 #' 
 #' @include zzzClasses.R
 #' @include Pipeline.R
@@ -28,7 +28,7 @@ NULL
 .crunchR.init <- function(libname=NULL, pkgname=NULL, pkgInit = F) {
 	
 	library(rJava)
-	require(RProtoBuf)
+	#require(RProtoBuf)
 	
 	if ( length(pkgname) == 0 ) pkgname <- "crunchR"
 	
@@ -79,11 +79,6 @@ NULL
 	.crunchR$FileJClass <- J("java/io/File")
 	.crunchR$RDoFnJClass <- J("org/crunchr/fn/RDoFn")
 	
-	#finding job jar 
-#	crunchR <<- crunchR
-	
-	# init inclusions 
-	.pipeline.init(pkgname)
 	
 }
 

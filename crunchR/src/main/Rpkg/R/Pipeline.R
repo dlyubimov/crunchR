@@ -1,7 +1,4 @@
 
-.pipeline.init <- function(pkgname) {
-}
-
 Pipeline.initialize <- function (jpipeline = NULL) {
 	
 	if ( !is.null(jpipeline))  {

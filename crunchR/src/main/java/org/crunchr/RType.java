@@ -40,9 +40,20 @@ public abstract class RType<T> {
 
     /**
      * 
-     * If type is "multiemit", the convention is that T is actually array of
-     * elements (i.e. <code>T extends Object[]</code>). It also mean that each
-     * array element will be output separately by the pipe.
+     * If type is a "multi-emit" one, the convention is that T is actually an
+     * array (or, in R speak, a dense vector) of elements (i.e.
+     * <code>T extends Object[]</code>). Since in R, all primitive types are
+     * actually arrays (i.e. there's no direct correspondence to a
+     * java.lang.String type, only to a String[] type) then multi-emit types
+     * actually make more sense then just a single Text or IntWritable. <R>
+     * 
+     * It also means that each array element will be output separately by the
+     * pipe.
+     * <P>
+     * 
+     * distinguish if R vector is meant to be emitted as a a whole writable, or
+     * a series of elements in case of dense vectors. In the latter case, the
+     * multi-emit type capability is needed.
      * <P>
      * 
      * @return true if we want to emit each value in a vector as a separate
