@@ -57,6 +57,12 @@
 			<artifactId>crunch</artifactId>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-client</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
 		<!-- test -->
 		<dependency>
 			<groupId>org.testng</groupId>
