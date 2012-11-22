@@ -25,7 +25,7 @@ public class RDoFn<S, T> extends DoFn<S, T> {
 
     private static final long       serialVersionUID = 1L;
 
-    protected byte[]                rInitializeFun, rCleanupFun, rProcessFun;
+    protected byte[]                closureList;
     protected String                srtypeClassName, trtypeClassName;
     protected String                srtypeJavaClassName, trtypeJavaClassName;
 
@@ -46,29 +46,14 @@ public class RDoFn<S, T> extends DoFn<S, T> {
         return RDoFnRType.getInstance().get(ByteBuffer.wrap(bytes), null);
     }
 
-    public byte[] getrInitializeFun() {
-        return rInitializeFun;
+    public byte[] getClosureList() {
+        return closureList;
     }
 
-    public void setrInitializeFun(byte[] rInitializeFun) {
-        this.rInitializeFun = rInitializeFun;
+    public void setClosureList(byte[] closureList) {
+        this.closureList = closureList;
     }
 
-    public byte[] getrCleanupFun() {
-        return rCleanupFun;
-    }
-
-    public void setrCleanupFun(byte[] rCleanupFun) {
-        this.rCleanupFun = rCleanupFun;
-    }
-
-    public byte[] getrProcessFun() {
-        return rProcessFun;
-    }
-
-    public void setrProcessFun(byte[] rProcessFun) {
-        this.rProcessFun = rProcessFun;
-    }
 
     public TwoWayRPipe getRpipe() {
         return rpipe;

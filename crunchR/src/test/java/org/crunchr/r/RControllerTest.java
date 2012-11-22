@@ -37,10 +37,10 @@ public class RControllerTest {
         REXP callbackRef = rController.getEngine().createRJavaRef(callback);
         rController.getEngine().assign("callback", callbackRef);
 
-        rController.eval("callback$set( .jarray(serialize(function(x) x, connection=NULL)))");
+        rController.eval("callback$set( .jarray(serialize(list(function(x) x, NULL,NULL), connection=NULL)))");
 
         RDoFn<String, String> simFun = new RDoFn<String, String>();
-        simFun.setrProcessFun(fser[0]);
+        simFun.setClosureList(fser[0]);
         simFun.setDoFnRef(255);
         simFun.setRTypeClassNames(new String[] { "RString", "RString" });
         simFun.setRTypeJavaClassNames(new String[] { RString.class.getName(), RString.class.getName() });

@@ -32,9 +32,7 @@ public class RDoFnRType extends RType<RDoFn> {
         RRaw rawType = RRaw.getInstance();
 
         SerializationHelper.setVarUint32(buffer, src.getDoFnRef());
-        rawType.set(buffer, src.getrInitializeFun());
-        rawType.set(buffer, src.getrProcessFun());
-        rawType.set(buffer, src.getrCleanupFun());
+        rawType.set(buffer, src.getClosureList());
         RStrings.getInstance().set(buffer, src.getRTypeClassNames());
 
     }
@@ -49,9 +47,7 @@ public class RDoFnRType extends RType<RDoFn> {
         RDoFn doFn = holder;
         doFn.setDoFnRef(SerializationHelper.getVarUint32(buffer));
 
-        doFn.setrInitializeFun(rawType.get(buffer, null));
-        doFn.setrProcessFun(rawType.get(buffer, null));
-        doFn.setrCleanupFun(rawType.get(buffer, null));
+        doFn.setClosureList(rawType.get(buffer, null));
         doFn.setRTypeClassNames(stringsType.get(buffer, null));
         doFn.setRTypeJavaClassNames(stringsType.get(buffer, null));
 

@@ -19,6 +19,7 @@ DoFn.initialize <- function ( FUN_PROCESS, FUN_INITIALIZE=NULL, FUN_CLEANUP=NULL
 		f
 	}
 	
+	stopifnot (!is.null(FUN_PROCESS))
 	FUN_PROCESS <<- fcustEnv(FUN_PROCESS)
 	if (!is.null(FUN_INITIALIZE)) FUN_INITIALIZE <<- fcustEnv(FUN_INITIALIZE)
 	if (!is.null(FUN_CLEANUP)) FUN_CLEANUP <<- fcustEnv(FUN_CLEANUP)
@@ -40,23 +41,8 @@ DoFnRType.set <- function (value ) {
 	
 	fnRef <- .setVarUint32(doFn$doFnRef)
 	
-	if ( is.null(doFn$FUN_INITIALIZE) ) {
-		f_init <- RRaw.set(raw(0))
-	} else {
-		f_init <- RRaw.set(serialize(doFn$FUN_INITIALIZE,connection=NULL))
-	}
-	
-	if ( is.null(doFn$FUN_PROCESS) ) {
-		f_process <- RRaw.set(raw(0))
-	} else {
-		f_process <- RRaw.set(serialize(doFn$FUN_PROCESS,connection=NULL))
-	}
-
-	if ( is.null(doFn$FUN_CLEANUP) ) {
-		f_cleanup <- RRaw.set(raw(0))
-	} else {
-		f_cleanup <- RRaw.set(serialize(doFn$FUN_CLEANUP,connection=NULL))
-	}
+	closures <- RRaw.set(serialize( list (doFn$FUN_PROCESS,doFn$FUN_INITIALIZE,doFn$FUN_CLEANUP),
+			connection=NULL)); 
 	
 	rClassNames <- RStrings.set(
 			c(
@@ -74,7 +60,7 @@ DoFnRType.set <- function (value ) {
 	
 	# in R2Java serialization, we also attach java class names 
 	# so that RType can be properly instantiated.
-	c(fnRef,f_init,f_process,f_cleanup,rClassNames,rJavaClassNames)
+	c(fnRef, closures, rClassNames,rJavaClassNames)
 	
 }
 
@@ -82,17 +68,16 @@ DoFnRType.get <- function (rawbuff,offset=1 ) {
 	fnRef <- .getVarUint32(rawbuff,offset)
 	offset <- offset + fnRef[2]
 	
-	f_init <- .unserializeFun(rawbuff,offset)
-	f_process <- .unserializeFun(rawbuff,f_init$offset)
-	f_cleanup <- .unserializeFun(rawbuff,f_process$offset)
-
-	offset <- f_cleanup$offset
+	closures <- RRaw.get(rawbuff,offset)
+	offset <- closures$offset
+	closures <- unserialize(closures$value)
 
 	typeClassNames <- RStrings.get(rawbuff,offset)
 	offset <- typeClassNames$offset
 	stopifnot ( length(typeClassNames$value)==2 )
 	
-	doFn <- crunchR.DoFn$new(f_process$value,f_init$value,f_cleanup$value,customizeEnv=T)
+	doFn <- crunchR.DoFn$new(closures[[1]],closures[[2]],
+			closures[[3]],customizeEnv=T)
 	doFn$doFnRef <- fnRef[1]
 	doFn$rpipe <- rpipe
 	
