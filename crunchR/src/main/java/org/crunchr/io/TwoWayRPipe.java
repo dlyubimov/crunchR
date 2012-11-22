@@ -294,6 +294,7 @@ public class TwoWayRPipe {
 
                 int secondsWaited = 0;
                 int waitTime = 20;
+                boolean threadExited = false;
                 while (null == (emitBuff = wait ? outQueue.poll(waitTime, TimeUnit.SECONDS) : outQueue.poll())) {
                     if (!wait)
                         return true;
@@ -301,9 +302,19 @@ public class TwoWayRPipe {
                     if (secondsWaited >= outputQueueMaxWait)
                         throw new IOException("R side is not responding in the maximum amount of time allowed.");
                     if (!rThread.isAlive()) {
-
-                        throw lastErr != null ? new IOException("R side exited prematurely", lastErr)
-                            : new IOException("R side exited prematurely (no errors were captured)");
+                        /*
+                         * if we see thread having exited it is still possible
+                         * that a normal output closure message is pending. so
+                         * we make sure we check again for the graceful message
+                         * before stating it was unexpected R-side breakage.
+                         */
+                        if (threadExited) {
+                            throw lastErr != null ? new IOException("R side exited prematurely", lastErr)
+                                : new IOException("R side exited prematurely (no errors were captured)");
+                        } else {
+                            threadExited = true;
+                            /* and try to wait again for the normal shutdown. */
+                        }
                     }
                 }
 

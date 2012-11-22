@@ -4,6 +4,7 @@
 #' @name crunchR
 #' @exportPattern "^crunchR\\."
 #' @import rJava
+#' @import bitops
 #' 
 #' @include zzzClasses.R
 #' @include Pipeline.R

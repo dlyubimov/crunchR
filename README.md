@@ -8,9 +8,9 @@ For starters, you want to be running Linux-- we're not quite ready for OS X.
 
 To use R Crunch, you need to have the following R packages installed locally:
 * rJava
-* doxygen
+* roxygen2
 * bitops
-* RProtoBuf
+* RProtoBuf (optional)
 
 You will also need the protocol buffer compiler, `protoc`, version 2.4.1 installed on your path.
 
