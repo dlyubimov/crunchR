@@ -6,12 +6,12 @@ import java.nio.ByteBuffer;
 import org.crunchr.types.RType;
 
 /**
- * corresponds to character vector in R. 
- * Whoever, we emit each string separately (multiemit = yes). 
- * If a character vector is truly single value then we need to 
- * re-derive and override multiemit = false.
+ * corresponds to character vector in R. Whoever, we emit each string separately
+ * (multiemit = yes). If a character vector is truly single value then we need
+ * to re-derive and override multiemit = false.
+ * 
  * @author dmitriy
- *
+ * 
  */
 public class RStrings extends RType<String[]> {
 
@@ -46,7 +46,5 @@ public class RStrings extends RType<String[]> {
     public boolean isMultiEmit() {
         return true;
     }
-    
-    
 
 }

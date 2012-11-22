@@ -78,6 +78,7 @@ NULL
 	.crunchR$TextFileTargetJClass <- J("org/apache/crunch/io/text/TextFileTarget")
 	.crunchR$FileJClass <- J("java/io/File")
 	.crunchR$RDoFnJClass <- J("org/crunchr/fn/RDoFn")
+	.crunchR$WritablesJClass <- J("org/apache/crunch/types/writable/Writables")
 	
 	
 }

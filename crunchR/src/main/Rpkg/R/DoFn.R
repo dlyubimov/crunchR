@@ -42,39 +42,33 @@ DoFnRType.set <- function (value ) {
 	fnRef <- .setVarUint32(doFn$doFnRef)
 	
 	closures <- RRaw.set(serialize( list (doFn$FUN_PROCESS,doFn$FUN_INITIALIZE,doFn$FUN_CLEANUP),
-			connection=NULL)); 
+					connection=NULL)); 
 	
-	rClassNames <- RStrings.set(
-			c(
-					doFn$srtype$getRefClass()$className,
-					doFn$trtype$getRefClass()$className
-			)
-	)
-	
-	rJavaClassNames <- RStrings.set(
-			c(
-					doFn$srtype$getJavaClassName(),
-					doFn$trtype$getJavaClassName()
-			)
-	)
+	rTypeState <- RTypeStateRType.set(doFn$srtype$getState())
+	tTypeState <- RTypeStateRType.set(doFn$trtype$getState())
 	
 	# in R2Java serialization, we also attach java class names 
 	# so that RType can be properly instantiated.
-	c(fnRef, closures, rClassNames,rJavaClassNames)
+	c(fnRef, closures, rTypeState, tTypeState)
 	
 }
 
-DoFnRType.get <- function (rawbuff,offset=1 ) { 
+DoFnRType.get <- function (rawbuff,offset=1 ) {
+	
 	fnRef <- .getVarUint32(rawbuff,offset)
 	offset <- offset + fnRef[2]
 	
 	closures <- RRaw.get(rawbuff,offset)
 	offset <- closures$offset
 	closures <- unserialize(closures$value)
-
-	typeClassNames <- RStrings.get(rawbuff,offset)
-	offset <- typeClassNames$offset
-	stopifnot ( length(typeClassNames$value)==2 )
+	
+	sTypeState <- RTypeStateRType.get(rawbuff,offset)
+	offset <- sTypeState$offset
+	sTypeState <- sTypeState$value
+	
+	tTypeState <- RTypeStateRType.get(rawbuff,offset)
+	offset <- tTypeState$offset
+	tTypeState <- tTypeState$value
 	
 	doFn <- crunchR.DoFn$new(closures[[1]],closures[[2]],
 			closures[[3]],customizeEnv=T)
@@ -82,8 +76,11 @@ DoFnRType.get <- function (rawbuff,offset=1 ) {
 	doFn$rpipe <- rpipe
 	
 	# RType classes must have default constructor for generic DoFn'ss
-	doFn$srtype <- getRefClass(typeClassNames$value[1])$new()
-	doFn$trtype <- getRefClass(typeClassNames$value[2])$new()
+	doFn$srtype <- getRefClass(sTypeState$rClassName)$new()
+	doFn$srtype$setState(sTypeState$specificState)
+	
+	doFn$trtype <- getRefClass(tTypeState$rClassName)$new()
+	doFn$trtype$setState(tTypeState$specificState)
 	
 	list(value=doFn,offset=offset)
 }

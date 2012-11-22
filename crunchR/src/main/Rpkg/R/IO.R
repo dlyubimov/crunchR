@@ -116,6 +116,32 @@ RStrings.set <- function (value ) {
 	r
 }
 
+RTypeStateRType.get <- function (rawbuff, offset = 1 ) {
+
+	state <- crunchR.RTypeState$new()
+	
+	v <- RString.get(rawbuff,offset)
+	offset <- v$offset
+	state$rClassName <- v$value
+	
+	v <- RString.get(rawbuff,offset)
+	offset <- v$offset
+	state$javaClassName <- v$value
+	
+	v <- RRaw.get(rawbuff,offset)
+	offset <- v$offset
+	state$specificState <- v$value
+	
+	list(offset=offset,value=state)
+}
+
+RTypeStateRType.set <- function ( value ) {
+	c(
+			RString.set(value$rClassName),
+			RString.set(value$javaClassName),
+			RRaw.set(value$specificState)
+	)
+}
 
 #' unserialize a function packed using RRaw RType
 #' @return a list with value=value and offset= next offset.

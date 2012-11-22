@@ -23,5 +23,4 @@ public class RInteger extends RType<Integer> {
         return buffer.getInt();
     }
 
-
 }

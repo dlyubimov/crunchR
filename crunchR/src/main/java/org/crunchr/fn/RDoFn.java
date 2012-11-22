@@ -8,6 +8,7 @@ import org.apache.crunch.Emitter;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.crunchr.r.RController;
 import org.crunchr.types.RType;
+import org.crunchr.types.RTypeState;
 import org.crunchr.types.io.RVarInt32;
 import org.crunchr.types.io.TwoWayRPipe;
 
@@ -26,8 +27,7 @@ public class RDoFn<S, T> extends DoFn<S, T> {
     private static final long       serialVersionUID = 1L;
 
     protected byte[]                closureList;
-    protected String                srtypeClassName, trtypeClassName;
-    protected String                srtypeJavaClassName, trtypeJavaClassName;
+    protected RTypeState            sRTypeState, tRTypeState;
 
     protected transient TwoWayRPipe rpipe;
     protected transient int         doFnRef;
@@ -54,7 +54,6 @@ public class RDoFn<S, T> extends DoFn<S, T> {
         this.closureList = closureList;
     }
 
-
     public TwoWayRPipe getRpipe() {
         return rpipe;
     }
@@ -69,20 +68,6 @@ public class RDoFn<S, T> extends DoFn<S, T> {
 
     public void setDoFnRef(int doFnRef) {
         this.doFnRef = doFnRef;
-    }
-
-    public String[] getRTypeClassNames() {
-        return new String[] { srtypeClassName, trtypeClassName };
-    }
-
-    public void setRTypeClassNames(String[] classNames) {
-        srtypeClassName = classNames[0];
-        trtypeClassName = classNames[1];
-    }
-
-    public void setRTypeJavaClassNames(String[] classNames) {
-        srtypeJavaClassName = classNames[0];
-        trtypeJavaClassName = classNames[1];
     }
 
     public RType<S> getSRType() {
@@ -103,6 +88,22 @@ public class RDoFn<S, T> extends DoFn<S, T> {
 
     public void setCleaned(boolean cleaned) {
         this.cleaned = cleaned;
+    }
+
+    public RTypeState getsRTypeState() {
+        return sRTypeState;
+    }
+
+    public void setsRTypeState(RTypeState sRTypeState) {
+        this.sRTypeState = sRTypeState;
+    }
+
+    public RTypeState gettRTypeState() {
+        return tRTypeState;
+    }
+
+    public void settRTypeState(RTypeState tRTypeState) {
+        this.tRTypeState = tRTypeState;
     }
 
     @Override
@@ -128,8 +129,8 @@ public class RDoFn<S, T> extends DoFn<S, T> {
              * flush/dispatch input buffer (since we are trying to wait till R
              * side definitely has processed the cleanup. Indeed, cleanup on R
              * side may cause some emitter flushing too, so we have to make sure
-             * everything is emitted and R side cleanup is finalized before we we
-             * confirm this function is completely done, back to Crunch.
+             * everything is emitted and R side cleanup is finalized before we
+             * we confirm this function is completely done, back to Crunch.
              */
             rpipe.flushInput();
             /*
@@ -153,8 +154,10 @@ public class RDoFn<S, T> extends DoFn<S, T> {
         super.initialize();
         try {
             ClassLoader cloader = Thread.currentThread().getContextClassLoader();
-            Class<? extends RType> srtypeClass = cloader.loadClass(srtypeJavaClassName).asSubclass(RType.class);
-            Class<? extends RType> trtypeClass = cloader.loadClass(trtypeJavaClassName).asSubclass(RType.class);
+            Class<? extends RType> srtypeClass =
+                cloader.loadClass(sRTypeState.getJavaClassName()).asSubclass(RType.class);
+            Class<? extends RType> trtypeClass =
+                cloader.loadClass(tRTypeState.getJavaClassName()).asSubclass(RType.class);
             srtype = ReflectionUtils.newInstance(srtypeClass, getConfiguration());
             trtype = ReflectionUtils.newInstance(trtypeClass, getConfiguration());
 
@@ -162,10 +165,11 @@ public class RDoFn<S, T> extends DoFn<S, T> {
              * for the purpose of evaluation of approach, we are going to make
              * another assumption and assume that no initialize() is going to be
              * called before any process() of any function. This, however, a
-             * more dangerous assumption in general case since Crunch may develop
-             * in ways that obviously do not hold this assumption true, or it
-             * may lazily delay function initializations in some cases for the
-             * purposes of optimization or something. Going forward, we probably
+             * more dangerous assumption in general case since Crunch may
+             * develop in ways that obviously do not hold this assumption true,
+             * or it may lazily delay function initializations in some cases for
+             * the purposes of optimization or something. Going forward, we
+             * probably
              */
             RController rcontroller = RController.getInstance(getConfiguration());
             rpipe = rcontroller.getRPipe();

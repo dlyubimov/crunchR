@@ -39,6 +39,26 @@ public abstract class RType<T> {
     abstract public T get(ByteBuffer buffer, T holder) throws IOException;
 
     /**
+     * Set internal type metadata
+     * 
+     * @param state
+     *            type metadata
+     * @throws IOException
+     */
+    public void setState(ByteBuffer buffer) throws IOException {
+    }
+
+    /**
+     * get serialized internal type state.
+     * 
+     * @param holder
+     * @return
+     * @throws IOException
+     */
+    public void getState(ByteBuffer buffer) throws IOException {
+    }
+
+    /**
      * 
      * If type is a "multi-emit" one, the convention is that T is actually an
      * array (or, in R speak, a dense vector) of elements (i.e.
