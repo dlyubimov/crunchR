@@ -5,7 +5,7 @@ import java.io.IOException;
 import org.apache.commons.lang.Validate;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
-import org.crunchr.io.TwoWayRPipe;
+import org.crunchr.types.io.TwoWayRPipe;
 import org.rosuda.JRI.REXP;
 import org.rosuda.JRI.Rengine;
 

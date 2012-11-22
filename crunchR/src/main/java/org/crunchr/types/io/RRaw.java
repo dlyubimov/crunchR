@@ -1,9 +1,9 @@
-package org.crunchr.io;
+package org.crunchr.types.io;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-import org.crunchr.RType;
+import org.crunchr.types.RType;
 
 /**
  * short raw vectors. vector of length 0 will be considered the same as null to

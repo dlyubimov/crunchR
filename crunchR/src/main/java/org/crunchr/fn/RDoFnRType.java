@@ -3,10 +3,10 @@ package org.crunchr.fn;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-import org.crunchr.RType;
-import org.crunchr.io.RRaw;
-import org.crunchr.io.RStrings;
-import org.crunchr.io.SerializationHelper;
+import org.crunchr.types.RType;
+import org.crunchr.types.io.RRaw;
+import org.crunchr.types.io.RStrings;
+import org.crunchr.types.io.SerializationHelper;
 
 /**
  * serialization of R function presentation between java and R

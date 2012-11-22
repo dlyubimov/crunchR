@@ -16,7 +16,7 @@ crunchR.RType <- setRefClass("RType",
 
 crunchR.RString <- setRefClass("RString",contains = "RType",
 		methods = list (
-				getJavaClassName = function () "org.crunchr.io.RString",
+				getJavaClassName = function () "org.crunchr.types.io.RString",
 				getPType = function() J("org/apache/crunch/types/writable/Writables")$strings(),	
 				set = RString.set,
 				get = RString.get
@@ -25,7 +25,7 @@ crunchR.RString <- setRefClass("RString",contains = "RType",
 
 crunchR.RRaw <- setRefClass("RRaw",contains = "RType",
 		methods = list (
-				getJavaClassName = function () "org.crunchr.io.RRaw",
+				getJavaClassName = function () "org.crunchr.types.io.RRaw",
 				set = RRaw.set,
 				get = RRaw.get
 		)
@@ -35,7 +35,7 @@ crunchR.RUint32 <- setRefClass("RUint32", contains="RType",
 		methods = list (
 				set = RUint32.set,
 				get = RUint32.get,
-				getJavaClassName = function() "org.crunchr.io.RInteger",
+				getJavaClassName = function() "org.crunchr.types.io.RInteger",
 				getPType = function() J("org/apache/crunch/types/writable/Writables")$ints()
 		)
 )
@@ -44,7 +44,7 @@ crunchR.RInt32 <- setRefClass("RInt32", contains="RType",
 		methods = list (
 				set = RInt32.set,
 				get = RInt32.get,
-				getJavaClassName = function() "org.crunchr.io.RInteger",
+				getJavaClassName = function() "org.crunchr.types.io.RInteger",
 				getPType = function() J("org/apache/crunch/types/writable/Writables")$ints()
 		)
 )
@@ -53,7 +53,7 @@ crunchR.RVarUint32 <- setRefClass("RVarUint32", contains = "RType",
 		methods = list (
 				set = RVarUint32.set,
 				get = RVarUint32.get,
-				getJavaClassName = function() "org.crunchr.io.RVarUint32",
+				getJavaClassName = function() "org.crunchr.types.io.RVarUint32",
 				getPType = function() J("org/apache/crunch/types/writable/Writables")$ints()
 		)
 )
@@ -62,7 +62,7 @@ crunchR.RVarInt32 <- setRefClass("RVarInt32", contains = "RType",
 		methods = list (
 				set = RVarInt32.set,
 				get = RVarInt32.get,
-				getJavaClassName = function() "org.crunchr.io.RVarInt32",
+				getJavaClassName = function() "org.crunchr.types.io.RVarInt32",
 				getPType = function() J("org/apache/crunch/types/writable/Writables")$ints()
 		)
 )
@@ -77,7 +77,7 @@ crunchR.RVarInt32 <- setRefClass("RVarInt32", contains = "RType",
 #' perhaps)
 crunchR.RStrings <- setRefClass("RStrings",contains = "RString",
 		methods = list (
-				getJavaClassName = function () "org.crunchr.io.RStrings",
+				getJavaClassName = function () "org.crunchr.types.io.RStrings",
 				getPType = function() J("org/apache/crunch/types/writable/Writables")$strings(),	
 				set = RStrings.set,
 				get = RStrings.get

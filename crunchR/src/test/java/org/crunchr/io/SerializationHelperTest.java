@@ -2,6 +2,7 @@ package org.crunchr.io;
 
 import java.nio.ByteBuffer;
 
+import org.crunchr.types.io.SerializationHelper;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 

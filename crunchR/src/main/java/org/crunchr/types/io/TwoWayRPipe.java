@@ -1,4 +1,4 @@
-package org.crunchr.io;
+package org.crunchr.types.io;
 
 import java.io.IOException;
 import java.nio.BufferOverflowException;
@@ -11,12 +11,12 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
-import org.crunchr.RType;
 import org.crunchr.fn.CleanupDoFn;
 import org.crunchr.fn.RDoFn;
 import org.crunchr.fn.RDoFnRType;
 import org.crunchr.r.RCallException;
 import org.crunchr.r.RController;
+import org.crunchr.types.RType;
 
 /**
  * Data xchg pipes between Java and R side.

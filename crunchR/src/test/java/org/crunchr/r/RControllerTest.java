@@ -5,8 +5,8 @@ import java.nio.ByteBuffer;
 
 import org.crunchr.fn.RDoFn;
 import org.crunchr.fn.RDoFnRType;
-import org.crunchr.io.RString;
-import org.crunchr.io.TwoWayRPipe;
+import org.crunchr.types.io.RString;
+import org.crunchr.types.io.TwoWayRPipe;
 import org.rosuda.JRI.REXP;
 import org.testng.annotations.Test;
 

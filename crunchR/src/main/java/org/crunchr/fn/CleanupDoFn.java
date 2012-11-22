@@ -1,8 +1,8 @@
 package org.crunchr.fn;
 
 import org.apache.crunch.Emitter;
-import org.crunchr.io.RVarInt32;
-import org.crunchr.io.TwoWayRPipe;
+import org.crunchr.types.io.RVarInt32;
+import org.crunchr.types.io.TwoWayRPipe;
 
 public class CleanupDoFn extends RDoFn<Integer, Integer> {
 

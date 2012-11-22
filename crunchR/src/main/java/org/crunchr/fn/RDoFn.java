@@ -6,10 +6,10 @@ import java.nio.ByteBuffer;
 import org.apache.crunch.DoFn;
 import org.apache.crunch.Emitter;
 import org.apache.hadoop.util.ReflectionUtils;
-import org.crunchr.RType;
-import org.crunchr.io.RVarInt32;
-import org.crunchr.io.TwoWayRPipe;
 import org.crunchr.r.RController;
+import org.crunchr.types.RType;
+import org.crunchr.types.io.RVarInt32;
+import org.crunchr.types.io.TwoWayRPipe;
 
 /**
  * R's doFn

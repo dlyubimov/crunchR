@@ -1,4 +1,4 @@
-package org.crunchr.io;
+package org.crunchr.types.io;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
