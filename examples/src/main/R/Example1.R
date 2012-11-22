@@ -10,7 +10,7 @@ wordCountExample <- function() {
 	inputPCol <- pipeline$readTextFile("/crunchr-examples/input")
 	
 	outputPCol <- inputPCol$parallelDo(	
-			function(line) emit( strsplit(tolower(line),"[^[:alnum:]]")[[1]] )
+			function(line) emit( strsplit(tolower(line),"[^[:alnum:]]+")[[1]] )
 	)
 	
 	outputPCol$writeTextFile("/crunchr-examples/output")
