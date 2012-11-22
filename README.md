@@ -24,3 +24,7 @@ by running the following:
 
 Assuming that works well, there are some example R scripts under the `examples` directory that
 you can use to test out loading the `crunchR` library and running simple pipelines.
+
+License
+=======
+Apache 2.0
