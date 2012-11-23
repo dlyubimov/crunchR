@@ -77,10 +77,10 @@ DoFnRType.get <- function (rawbuff,offset=1 ) {
 	
 	# RType classes must have default constructor for generic DoFn'ss
 	doFn$srtype <- getRefClass(sTypeState$rClassName)$new()
-	doFn$srtype$setState(sTypeState$specificState)
+	doFn$srtype$setState(sTypeState)
 	
 	doFn$trtype <- getRefClass(tTypeState$rClassName)$new()
-	doFn$trtype$setState(tTypeState$specificState)
+	doFn$trtype$setState(tTypeState)
 	
 	list(value=doFn,offset=offset)
 }

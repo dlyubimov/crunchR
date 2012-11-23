@@ -149,7 +149,7 @@ RPTableType.setState = function (typeState ) {
 	rawbuff <- typeState$specificState
 	
 	keyTypeState <- RTypeStateRType.get(rawbuff)
-	offset <- keyType$offset
+	offset <- keyTypeState$offset
 	keyTypeState <- keyTypeState$value
 	
 	valueTypeState <- RTypeStateRType.get(rawbuff,offset)

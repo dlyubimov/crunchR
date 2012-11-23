@@ -8,12 +8,29 @@ wordCountExample <- function() {
 	pipeline <- crunchR.MRPipeline$new("test-pipeline")
 	
 	inputPCol <- pipeline$readTextFile("/crunchr-examples/input")
+
+#   the following locks up. TODO: figure how it locks up, probably during 
+#   cleanup. 
 	
-	outputPCol <- inputPCol$parallelDo(	
-			function(line) emit( strsplit(tolower(line),"[^[:alnum:]]+")[[1]] )
+#	wordsPCol <- inputPCol$parallelDo(	
+#			function(line) emit( strsplit(tolower(line),"[^[:alnum:]]+")[[1]] )
+#	)
+#	
+#	wordsPTab <- wordsPCol$parallelDo(function(word) emit(word,1),
+#			keyType = crunchR.RString$new(),
+#			valueType = crunchR.RUint32$new())
+	
+#   this works:
+	wordsPTab <- inputPCol$parallelDo(	
+			function(line) { 
+				words<- strsplit(tolower(line),"[^[:alnum:]]+")[[1]]
+				sapply(words, function(x) emit(x,1))
+			},
+			keyType = crunchR.RString$new(),
+			valueType = crunchR.RUint32$new()
 	)
 	
-	outputPCol$writeTextFile("/crunchr-examples/output")
+	wordsPTab$writeTextFile("/crunchr-examples/output")
 	
 	result <- pipeline$run()
 	

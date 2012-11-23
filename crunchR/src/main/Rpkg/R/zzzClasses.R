@@ -29,7 +29,8 @@ crunchR.RType <- setRefClass("RType",
 					state
 				},
 				getJavaClassName = function() { stop ("Not implemented") },
-				getPType = function() { stop ("Not implemented")}
+				getPType = function() { stop ("Not implemented")},
+				as.singleEmit = function() .self
 		)
 )
 
@@ -106,7 +107,8 @@ crunchR.RStrings <- setRefClass("RStrings",contains = "RString",
 				getJavaClassName = function () "org.crunchr.types.io.RStrings",
 				getPType = function() J("org/apache/crunch/types/writable/Writables")$strings(),	
 				set = RStrings.set,
-				get = RStrings.get
+				get = RStrings.get,
+				as.singleEmit=function() crunchR.RString$new()
 		)
 )
 
@@ -246,7 +248,7 @@ crunchR.PCollection <- setRefClass ("PCollection",
 				.jparallelDo = function (FUN_PROCESS, 
 						FUN_INITIALIZE=NULL,FUN_CLEANUP=NULL,trtype ) {
 					doFn <- crunchR.DoFn$new(FUN_PROCESS,FUN_INITIALIZE,FUN_CLEANUP)
-					doFn$srtype <- rtype
+					doFn$srtype <- rtype$as.singleEmit()
 					doFn$trtype <- trtype
 					
 					jDoFn <- .jcall(.crunchR$RDoFnJClass ,"Lorg/crunchr/fn/RDoFn;","fromBytes",
