@@ -34,3 +34,4 @@ wordCountExample()
 #line <- "this is a line"
 #class(strsplit(tolower(line),"[^[:alnum:]]")[[1]])
 
+#ptable <- crunchR.RPTableType$new()

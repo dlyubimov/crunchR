@@ -95,9 +95,9 @@ TwoWayPipe.dispatch <- function (rawbuff) {
 	closeOutput()
 }
 
-TwoWayPipe.emit <- function (x,doFn) {
+TwoWayPipe.emit <- function (...,doFn) {
 	if ( outputBuffOffset >= outputBuffCapacity ) flushOutput()
-	packedEmission <- doFn$trtype$set(x)
+	packedEmission <- doFn$trtype$set(...)
 	
 	# 1. writing function reference
 	fnRef <- .setVarInt32(doFn$doFnRef)

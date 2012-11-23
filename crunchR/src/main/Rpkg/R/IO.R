@@ -99,7 +99,7 @@ RStrings.get <- function (rawbuff, offset = 1 ) {
 
 RStrings.set <- function (value ) {
 	stopifnot(class(value)=="character")
-
+	
 	# this is probably not the best practice 
 	# (multiple c() invocation). Better practice 
 	# would be lazy extension and final trim.
@@ -117,7 +117,7 @@ RStrings.set <- function (value ) {
 }
 
 RTypeStateRType.get <- function (rawbuff, offset = 1 ) {
-
+	
 	state <- crunchR.RTypeState$new()
 	
 	v <- RString.get(rawbuff,offset)
@@ -141,6 +141,36 @@ RTypeStateRType.set <- function ( value ) {
 			RString.set(value$javaClassName),
 			RRaw.set(value$specificState)
 	)
+}
+
+RPTableType.setState = function (typeState ) {
+	callSuper(typeState)
+	
+	rawbuff <- typeState$specificState
+	
+	keyTypeState <- RTypeStateRType.get(rawbuff)
+	offset <- keyType$offset
+	keyTypeState <- keyTypeState$value
+	
+	valueTypeState <- RTypeStateRType.get(rawbuff,offset)
+	offset <- valueTypeState$offset
+	valueTypeState <- valueTypeState$value
+	
+	keyType <<- getRefClass(keyTypeState$rClassName)$new()
+	keyType$setState(keyTypeState)
+	
+	valueType <<- getRefClass(valueTypeState$rClassName)$new()
+	valueType$setState(valueTypeState)
+	
+}
+
+RPTableType.getState <-  function () {
+	state <- callSuper()
+	state$specificState <- c(
+			RTypeStateRType.set(keyType$getState()),
+			RTypeStateRType.set(valueType$getState())
+	)
+	state
 }
 
 #' unserialize a function packed using RRaw RType

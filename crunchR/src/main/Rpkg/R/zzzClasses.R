@@ -38,8 +38,8 @@ crunchR.RTypeStateRType <- setRefClass("RTypeStateRType", contains="RType",
 				getJavaClassName = function() "org.crunchr.types.io.RTypeStateRType",
 				set = RTypeStateRType.set,
 				get = RTypeStateRType.get
-				)
 		)
+)
 
 crunchR.RString <- setRefClass("RString",contains = "RType",
 		methods = list (
@@ -94,22 +94,6 @@ crunchR.RVarInt32 <- setRefClass("RVarInt32", contains = "RType",
 		)
 )
 
-#crunchR.RPTableType <- setRefClass("RPTableType", contains =  "RType",
-#		fields = list (
-#				keyType = "RType",
-#				valueType = "RType"
-#		),
-#		methods = list (
-#				initialize = RPTableType.initialize,
-#				getJavaClassName = function () "org.crunchr.types.io.RPTableType",
-#				getPType = function() .crunchR$WritablesJClass$tableOf(
-#							keyType$getPType(),
-#							valueType$getPType()),
-#				getPTableType = getPType,
-#		)
-#)
-
-
 #' RStrings
 #' 
 #' @description
@@ -123,6 +107,36 @@ crunchR.RStrings <- setRefClass("RStrings",contains = "RString",
 				getPType = function() J("org/apache/crunch/types/writable/Writables")$strings(),	
 				set = RStrings.set,
 				get = RStrings.get
+		)
+)
+
+crunchR.RPTableType <- setRefClass("RPTableType", contains =  "RType",
+		fields = list (
+				keyType = "RType",
+				valueType = "RType"
+		),
+		methods = list (
+				initialize = function (
+						keyRType = crunchR.RString$new(), 
+						valueRType = crunchR.RString$new(),...) {
+					callSuper(...)
+					keyType <<- keyRType
+					valueType <<- valueRType
+				},
+				set = function(key,value) c( keyType$set(key), valueType$set(value) ),
+				get = function(rawbuff, offset=1) {
+					key <- keyType$get(rawbuff,offset)
+					offset <- key$offset
+					value <- valueType$get(rawbuff,offset)
+					offset <- value$offset
+					list(value=list(key=key$value,value=value$value),offset=offset)
+				},
+				setState = RPTableType.setState,
+				getState = RPTableType.getState,
+				getJavaClassName = function () "org.crunchr.types.io.RPTableType",
+				getPType = function() .crunchR$WritablesJClass$tableOf(
+							keyType$getPType(),
+							valueType$getPType())
 		)
 )
 

@@ -9,7 +9,8 @@ DoFn.initialize <- function ( FUN_PROCESS, FUN_INITIALIZE=NULL, FUN_CLEANUP=NULL
 	doFnRef <<- 0
 	
 	# prep call environment
-	femit <- function(x) .self$rpipe$emit(x,.self)
+	femit <- function(...) .self$rpipe$emit(...,doFn=.self)
+	
 	fcustEnv <- function(f) {
 		if ( customizeEnv ) { 
 			fenv <- new.env(parent=environment(f))
@@ -28,7 +29,6 @@ DoFn.initialize <- function ( FUN_PROCESS, FUN_INITIALIZE=NULL, FUN_CLEANUP=NULL
 	trtype <<- crunchR.RStrings$new()
 	
 }
-
 
 DoFn.getSRType <- function () srtype
 
