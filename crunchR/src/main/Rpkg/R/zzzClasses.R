@@ -116,13 +116,6 @@ crunchR.RPTableType <- setRefClass("RPTableType", contains =  "RType",
 				valueType = "RType"
 		),
 		methods = list (
-				initialize = function (
-						keyRType = crunchR.RString$new(), 
-						valueRType = crunchR.RString$new(),...) {
-					callSuper(...)
-					keyType <<- keyRType
-					valueType <<- valueRType
-				},
 				set = function(key,value) c( keyType$set(key), valueType$set(value) ),
 				get = function(rawbuff, offset=1) {
 					key <- keyType$get(rawbuff,offset)
@@ -222,7 +215,7 @@ crunchR.MRPipeline <- setRefClass("MRPipeline", contains=crunchR.Pipeline,
 				initialize = MRPipeline.initialize,
 				run = MRPipeline.run,
 				readTextFile = function (pathName) 	
-					crunchR.PCollection$new(jobj$readTextFile(pathName))
+					crunchR.PCollection$new(jobj=jobj$readTextFile(pathName),rtype=crunchR.RString$new())
 		)
 )
 
@@ -250,31 +243,56 @@ crunchR.PCollection <- setRefClass ("PCollection",
 				rtype = "RType"
 		),
 		methods = list (
-				
-				initialize = function (jobjRef,rtype = crunchR.RString$new() ) {
-					jobj <<- jobjRef
-					rtype <<- rtype
-				},
-				
-				parallelDo = function ( FUN_PROCESS, trtype=crunchR.RStrings$new(), 
-						FUN_INITIALIZE=NULL,FUN_CLEANUP=NULL ) {
-					
+				.jparallelDo = function (FUN_PROCESS, 
+						FUN_INITIALIZE=NULL,FUN_CLEANUP=NULL,trtype ) {
 					doFn <- crunchR.DoFn$new(FUN_PROCESS,FUN_INITIALIZE,FUN_CLEANUP)
 					doFn$srtype <- rtype
 					doFn$trtype <- trtype
 					
-#					jDoFn <- J("org/crunchr/fn/RDoFn")$fromBytes(DoFnRType.set(doFn))
-					jDoFn <- .jcall(.crunchR$RDoFnJClass ,"Lorg/crunchr/fn/RDoFn;","fromBytes",DoFnRType.set(doFn))
-					jpcollection <- jobj$parallelDo(jDoFn,trtype$getPType())
-					crunchR.PCollection$new(jpcollection,trtype)
+					jDoFn <- .jcall(.crunchR$RDoFnJClass ,"Lorg/crunchr/fn/RDoFn;","fromBytes",
+							DoFnRType.set(doFn))
+					jobj$parallelDo(jDoFn,trtype$getPType())
 				},
-				
+				parallelDo = function ( FUN_PROCESS, 
+						FUN_INITIALIZE=NULL,FUN_CLEANUP=NULL,
+						valueType=crunchR.RStrings$new(), keyType) {
+					if (missing(keyType)) { 
+						.parallelDo.PCollection(FUN_PROCESS,FUN_INITIALIZE,FUN_CLEANUP,valueType)
+					} else {
+						.parallelDo.PTable(FUN_PROCESS,FUN_INITIALIZE,FUN_CLEANUP,keyType,valueType)
+					}
+				},
+				.parallelDo.PCollection = function ( FUN_PROCESS, 
+						FUN_INITIALIZE,FUN_CLEANUP,	trtype ) {
+					
+					crunchR.PCollection$new(
+							jobj=.jparallelDo(FUN_PROCESS,FUN_INITIALIZE,FUN_CLEANUP,trtype),
+							rtype=trtype
+					)
+				},
+				.parallelDo.PTable = function (FUN_PROCESS, FUN_INITIALIZE,FUN_CLEANUP,
+						keyType = crunchR.RString$new(),
+						valueType = crunchR.RString$new() ) {
+					ptableType <- crunchR.RPTableType$new(keyType=keyType,valueType=valueType)
+					crunchR.PTable$new(
+							jobj=.jparallelDo(FUN_PROCESS,FUN_INITIALIZE,FUN_CLEANUP,ptableType),
+							rPTableType=ptableType
+					)
+				},
 				writeTextFile = function (pathname ) {
 					stopifnot (is(pathname,"character"))
 					stopifnot (length(pathname)==1)
 					jTextFileTarget <- new(.crunchR$TextFileTargetJClass,pathname)
 					jobj$write(jTextFileTarget)
 				} 
+		)
+)
+
+crunchR.PTable <- setRefClass("PTable", contains = "PCollection",
+		fields = list ( 
+				rPTableType = "RPTableType"
+		),
+		methods = list (
 		)
 )
 

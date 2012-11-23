@@ -11,6 +11,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
+import org.apache.crunch.Pair;
 import org.crunchr.fn.CleanupDoFn;
 import org.crunchr.fn.RDoFn;
 import org.crunchr.fn.RDoFnRType;
@@ -353,17 +354,49 @@ public class TwoWayRPipe {
                              * in the first place, but some small items such as
                              * ints, it would...
                              */
-                            for (Object item : (Object[]) holder) {
-                                rDoFn.getEmitter().emit(item);
+                            if (holder instanceof Pair) {
+
+                                /*
+                                 * PTable multi-emit types emit
+                                 * Pair<Object[],Object[]>, not
+                                 * Pair<Object,Object>[] to save on number of
+                                 * java references generated. So we need this
+                                 * code to adapt that to behavior Crunch
+                                 * actually expects. It is still pretty wasteful
+                                 * in case such as Double[] on java side which
+                                 * could be much better off represented by
+                                 * double[] to reduce java reference overhead...
+                                 * we will have to address these special cases
+                                 * later. However, it is only a case for
+                                 * dense+unnamed R vectors so it is not really
+                                 * that conducive to R vector serialization as
+                                 * it might seem at first sight. So I put it off
+                                 * until i have a better idea how to adapt
+                                 * those.
+                                 */
+                                @SuppressWarnings({ "unchecked", "rawtypes" })
+                                Pair<Object[], Object[]> p = (Pair) holder;
+                                Object[] key = p.first();
+                                Object[] value = p.second();
+                                if (key.length != value.length)
+                                    throw new IOException("multi-emit key/value elements must be of the same length");
+                                int len = key.length;
+                                for (int j = 0; j < len; j++)
+                                    rDoFn.getEmitter().emit(Pair.of(key[j], value[j]));
+                            } else {
+                                /* multi-emit non-ptable rType */
+                                for (Object item : (Object[]) holder) {
+                                    rDoFn.getEmitter().emit(item);
+                                }
                             }
                         } else {
+                            /* single-emit */
                             if (doSave) {
                                 outHolders.put(doFnRef, holder);
                             }
                             rDoFn.getEmitter().emit(holder);
                         }
                     }
-
                 }
             }
         } catch (InterruptedException e) {

@@ -17,6 +17,10 @@ public class RStrings extends RType<String[]> {
 
     private static final RStrings singleton = new RStrings();
 
+    {
+        multiEmit = true;
+    }
+
     public static RStrings getInstance() {
         return singleton;
     }
@@ -40,11 +44,6 @@ public class RStrings extends RType<String[]> {
             result[i] = rstr.get(buffer, null);
         }
         return result;
-    }
-
-    @Override
-    public boolean isMultiEmit() {
-        return true;
     }
 
 }

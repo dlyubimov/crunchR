@@ -5,7 +5,7 @@ import java.nio.ByteBuffer;
 
 import org.apache.crunch.DoFn;
 import org.apache.crunch.Emitter;
-import org.apache.hadoop.util.ReflectionUtils;
+import org.apache.hadoop.conf.Configuration;
 import org.crunchr.r.RController;
 import org.crunchr.types.RType;
 import org.crunchr.types.RTypeState;
@@ -149,17 +149,12 @@ public class RDoFn<S, T> extends DoFn<S, T> {
     }
 
     @Override
-    @SuppressWarnings({ "unchecked", "rawtypes" })
     public void initialize() {
         super.initialize();
         try {
-            ClassLoader cloader = Thread.currentThread().getContextClassLoader();
-            Class<? extends RType> srtypeClass =
-                cloader.loadClass(sRTypeState.getJavaClassName()).asSubclass(RType.class);
-            Class<? extends RType> trtypeClass =
-                cloader.loadClass(tRTypeState.getJavaClassName()).asSubclass(RType.class);
-            srtype = ReflectionUtils.newInstance(srtypeClass, getConfiguration());
-            trtype = ReflectionUtils.newInstance(trtypeClass, getConfiguration());
+            Configuration conf = getConfiguration();
+            srtype = RType.fromState(sRTypeState, conf);
+            trtype = RType.fromState(tRTypeState, conf);
 
             /*
              * for the purpose of evaluation of approach, we are going to make
@@ -177,8 +172,6 @@ public class RDoFn<S, T> extends DoFn<S, T> {
 
             rpipe.addDoFn(this);
 
-        } catch (ClassNotFoundException exc) {
-            throw new RuntimeException(exc);
         } catch (IOException exc) {
             throw new RuntimeException(exc);
         }

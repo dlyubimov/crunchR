@@ -3,7 +3,9 @@ package org.crunchr.types;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.util.ReflectionUtils;
 
 /**
  * This is meant to be supported on both java and R end so that stuff serialized
@@ -14,6 +16,9 @@ import org.apache.hadoop.io.Writable;
  * @param <T>
  */
 public abstract class RType<T> {
+
+    protected boolean multiEmit;
+
     /**
      * serialize given instance into the byte buffer.
      * 
@@ -45,17 +50,7 @@ public abstract class RType<T> {
      *            type metadata
      * @throws IOException
      */
-    public void setState(ByteBuffer buffer) throws IOException {
-    }
-
-    /**
-     * get serialized internal type state.
-     * 
-     * @param holder
-     * @return
-     * @throws IOException
-     */
-    public void getState(ByteBuffer buffer) throws IOException {
+    public void setSpecificState(ByteBuffer buffer, Configuration conf) throws IOException {
     }
 
     /**
@@ -81,6 +76,28 @@ public abstract class RType<T> {
      * 
      */
     public boolean isMultiEmit() {
-        return false;
+        return multiEmit;
+    }
+
+    /**
+     * 
+     * @param state
+     * @param conf
+     * @return
+     * @throws IOException
+     */
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    public static <T> RType<T> fromState(RTypeState state, Configuration conf) throws IOException {
+        try {
+            ClassLoader cloader = Thread.currentThread().getContextClassLoader();
+            Class<? extends RType> rtypeClass = cloader.loadClass(state.getJavaClassName()).asSubclass(RType.class);
+
+            RType<T> rtype = ReflectionUtils.newInstance(rtypeClass, conf);
+            byte[] sstate = state.getTypeSpecificState();
+            rtype.setSpecificState(ByteBuffer.wrap(sstate==null?new byte[0]:sstate), conf);
+            return rtype;
+        } catch (ClassNotFoundException exc) {
+            throw new IOException(exc);
+        }
     }
 }
