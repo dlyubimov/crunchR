@@ -57,7 +57,11 @@ TwoWayPipe.addDoFn <- function (doFn) {
 TwoWayPipe.run <- function () {
 	repeat {
 		rawbuff <- .jcall(jpipe,"[B","rcallbackNextBuff")
-		if ( is.null(rawbuff) | length(rawbuff)==0) break
+		if ( is.null(rawbuff) | length(rawbuff)==0) {
+			if ( .jlogging) .jlogInfo("received input close, exiting dispatch loop.")	
+			closeOutput()
+			break
+		}
 		
 		dispatch(rawbuff)
 		
@@ -69,6 +73,9 @@ TwoWayPipe.run <- function () {
 TwoWayPipe.dispatch <- function (rawbuff) {
 	stopifnot(mode(rawbuff)=="raw")
 	count <- .getShort(rawbuff)
+	
+	if ( .jlogging ) .jlogInfo(sprintf("got input data with %d messages.",count))
+	
 	offset <- 3L	
 	i <- 1L
 	while (i <= count ) {
@@ -77,12 +84,16 @@ TwoWayPipe.dispatch <- function (rawbuff) {
 		offset <- offset + doFnRef[2]
 		fnRefKey <- as.character(doFnRef[1])
 		
+		if ( .jlogging ) .jlogInfo(sprintf("got fnref %s.",fnRefKey))
+		
 		
 		srt <- srType[[fnRefKey]]
 		doFn <- doFnMap[[fnRefKey]]
 
-		if ( is.null(srt) | is.null(doFn) )
-			stop ("unknown doFnRef or unintialized RType")
+		if ( is.null(doFn) )
+			stop (sprintf("Unknown doFnRef %s, no such function found", fnRefKey))
+		if ( is.null(srt) )
+			stop (sprintf("Source type not found for function doFnRef %s ",fnRefKey))
 		
 		robj <- srt$get(rawbuff,offset)
 		offset <- robj$offset
@@ -92,7 +103,6 @@ TwoWayPipe.dispatch <- function (rawbuff) {
 		
 		i <- i + 1L
 	}
-	closeOutput()
 }
 
 TwoWayPipe.emit <- function (...,doFn) {

@@ -59,9 +59,10 @@ public class RControllerTest {
         fos.close();
 
         TwoWayRPipe rpipe = rController.getRPipe();
-        rpipe.start();
+        rpipe.startIfNotStarted();
 
-        rpipe.addDoFn(simFun);
+        for ( int i = 0; i < 29; i++)
+            rpipe.addDoFn(simFun);
 
         // simulate function addition and call on R side
         // ...

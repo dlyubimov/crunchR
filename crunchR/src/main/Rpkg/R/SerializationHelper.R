@@ -1,7 +1,9 @@
 
 # serialization helpers
 
-library(bitops)
+# normally should be F
+.jlogging <- F
+.jlogInfo <- function(s) .jcall(.crunchR$jlog,"V","info",s)  
 
 .getShort <- function (rawbuff, offset = 1 ) {
 	# assume little endian packing 

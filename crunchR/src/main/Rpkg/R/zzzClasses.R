@@ -286,6 +286,7 @@ crunchR.PCollection <- setRefClass ("PCollection",
 					stopifnot (length(pathname)==1)
 					jTextFileTarget <- new(.crunchR$TextFileTargetJClass,pathname)
 					jobj$write(jTextFileTarget)
+					NA
 				} 
 		)
 )

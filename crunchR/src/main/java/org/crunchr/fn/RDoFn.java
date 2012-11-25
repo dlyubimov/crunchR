@@ -135,10 +135,11 @@ public class RDoFn<S, T> extends DoFn<S, T> {
             rpipe.flushInput();
             /*
              * wait till our R counterpart finishes all the things it still
-             * wanted to finish...
+             * wanted to finish.
+             * 
              */
             while (!cleaned)
-                rpipe.checkOutputQueue(true);
+                rpipe.checkOutputQueue(true, true);
             /*
              * after we got a receipt of cleanup activity for this function from
              * the R side, we can confirm the same to Crunch now and exit.

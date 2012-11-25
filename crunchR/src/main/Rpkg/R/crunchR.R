@@ -80,6 +80,10 @@ NULL
 	.crunchR$RDoFnJClass <- J("org/crunchr/fn/RDoFn")
 	.crunchR$WritablesJClass <- J("org/apache/crunch/types/writable/Writables")
 	
+	.crunchR$jlog <- J("java/util/logging/Logger")$getLogger("crunchR")
+	
+	
+	
 	
 }
 

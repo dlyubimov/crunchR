@@ -44,15 +44,14 @@ import org.crunchr.types.RType;
  */
 public class TwoWayRPipe {
 
-    private static final int      MAXINBUFCAPACITY   = 1 << 12;
+    private static final Logger   s_log              = Logger.getLogger("crunchR");
 
+    private static final int      MAXINBUFCAPACITY   = 1 << 12;
     /*
      * special message: add a do Fn to the R side
      */
     public static final int       ADD_DO_FN          = -1;
     public static final int       CLEANUP_FN         = -2;
-
-    private static final Logger   s_log              = Logger.getLogger("crunchR");
 
     private ByteBuffer            inBuffers[];
     private BlockingQueue<byte[]> inQueue;
@@ -123,7 +122,7 @@ public class TwoWayRPipe {
     }
 
     public <S> void add(S value, RType<S> rtype, int doFnRef) throws IOException {
-        checkOutputQueue(false);
+        checkOutputQueue(false, false);
         int position = inBuffers[inBuffer].position();
         ByteBuffer bb = inBuffers[inBuffer];
         while (true)
@@ -135,6 +134,8 @@ public class TwoWayRPipe {
             } catch (BufferOverflowException exc) {
                 if (inCount == 0) {
                     inBuffers[inBuffer] = bb = ByteBuffer.allocate(inBuffers[inBuffer].capacity() << 1);
+                    bb.order(ByteOrder.LITTLE_ENDIAN);
+                    resetBuffer(bb);
                     continue;
                 } else {
                     bb.position(position);
@@ -169,7 +170,7 @@ public class TwoWayRPipe {
      */
     public void closeOutput(boolean waitClose) throws IOException {
         if (waitClose)
-            checkOutputQueue(true);
+            checkOutputQueue(true, false);
         else
             outClosed = true;
     }
@@ -183,6 +184,7 @@ public class TwoWayRPipe {
      */
     public synchronized void rcallbackBufferConsumed() throws IOException {
         availableOutBuffers++;
+        notify();
     }
 
     /**
@@ -282,20 +284,32 @@ public class TwoWayRPipe {
 
     /**
      * checks output queue, non-blocking fashion.
+     * <P>
+     * 
+     * Warning: this must be re-entrant since calls to emit() may cause nested
+     * invocations of this method!
+     * <P>
+     * 
+     * @param once
+     *            TODO
      * 
      * @return true if ok, false if output end was closd.
      * @throws IOException
      */
-    public boolean checkOutputQueue(boolean wait) throws IOException {
+    public boolean checkOutputQueue(boolean wait, boolean once) throws IOException {
         if (outClosed)
             return false;
         byte[] emitBuff;
         try {
-            for (;;) {
+            for (int z = 0; !once || z < 1; z++) {
 
                 int secondsWaited = 0;
                 int waitTime = 20;
                 boolean threadExited = false;
+
+                /*
+                 * obtain next buffer
+                 */
                 while (null == (emitBuff = wait ? outQueue.poll(waitTime, TimeUnit.SECONDS) : outQueue.poll())) {
                     if (!wait)
                         return true;
@@ -319,6 +333,9 @@ public class TwoWayRPipe {
                     }
                 }
 
+                /*
+                 * process next emit buff
+                 */
                 ByteBuffer bb = ByteBuffer.wrap(emitBuff).order(ByteOrder.LITTLE_ENDIAN);
                 if (bb.remaining() == 0) {
                     outClosed = true;
@@ -341,8 +358,8 @@ public class TwoWayRPipe {
                     boolean doSave = false;
 
                     if (!multiEmit) {
-                        holder = outHolders.get(doFnRef);
-                        doSave = holder == null;
+                        holder = outHolders.remove(doFnRef);
+                        doSave = true;
                     }
                     holder = trtype.get(bb, holder);
                     if (holder != null) {
@@ -399,6 +416,7 @@ public class TwoWayRPipe {
                     }
                 }
             }
+            return true;
         } catch (InterruptedException e) {
             throw new IOException("Interrupted", e);
         }
@@ -433,6 +451,7 @@ public class TwoWayRPipe {
             }
             inBuffer = (inBuffer + 1) % inBuffers.length;
             resetBuffer(inBuffers[inBuffer]);
+            inCount = 0;
         } catch (InterruptedException exc) {
             throw new IOException("Interrupted");
         }
