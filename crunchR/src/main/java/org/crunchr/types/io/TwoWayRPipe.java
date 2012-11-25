@@ -201,6 +201,9 @@ public class TwoWayRPipe {
          */
         try {
             outQueue.put(emitBuff);
+            synchronized(this) { 
+                notify();
+            }
         } catch (InterruptedException e) {
             throw new IOException("Interrupted", e);
         }
@@ -446,8 +449,10 @@ public class TwoWayRPipe {
              * wait until at least one buffer is available again
              */
             synchronized (this) {
-                while (availableOutBuffers == 0)
+                while (availableOutBuffers == 0) {
+                    checkOutputQueue(false, false);
                     wait();
+                }
             }
             inBuffer = (inBuffer + 1) % inBuffers.length;
             resetBuffer(inBuffers[inBuffer]);
