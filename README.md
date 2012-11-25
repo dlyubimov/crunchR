@@ -6,13 +6,26 @@ Prerequisites
 ===============
 For starters, you want to be running Linux-- we're not quite ready for OS X.
 
-To use R Crunch, you need to have the following R packages installed locally:
+To use Crunch R, you need to have the following R packages installed locally:
 * rJava
 * roxygen2
 * bitops
 * RProtoBuf (optional)
 
 You will also need the protocol buffer compiler, `protoc`, version 2.4.1 installed on your path.
+
+Another thing is that your map/reducer tasks on the cluster will have to have access to the same as above 
+plus they need to be able to load JRI library. One way to do it is to supply -Djava.library.path 
+to children as in follows 
+
+  <property>
+     <name>mapred.child.java.opts</name>
+     <value>-Djava.library.path=/home/dmitriy/R/x86_64-pc-linux-gnu-library/2/rJava/jri </value>
+     <final>false</final>
+  </property>
+
+Perhaps another possible way to install it is just to link the libjri.so into your hadoop native libs folder.
+
 
 Getting Started
 ================
