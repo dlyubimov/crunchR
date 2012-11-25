@@ -18,13 +18,18 @@ Another thing is that your map/reducer tasks on the cluster will have to have ac
 plus they need to be able to load JRI library. One way to do it is to supply -Djava.library.path 
 to children as in follows 
 
-  <property>
-     <name>mapred.child.java.opts</name>
-     <value>-Djava.library.path=/home/dmitriy/R/x86_64-pc-linux-gnu-library/2/rJava/jri </value>
-     <final>false</final>
-  </property>
+    <property>
+       <name>mapred.child.java.opts</name>
+       <value>-Djava.library.path=/home/dmitriy/R/x86_64-pc-linux-gnu-library/2/rJava/jri </value>
+       <final>false</final>
+    </property>
 
-Perhaps another possible way to install it is just to link the libjri.so into your hadoop native libs folder.
+Perhaps another possible way to install it is just to soft-link the libjri.so into your hadoop native libs folder.
+You can figure location of libjri.so by running 
+
+    system.file("jri",package="rJava")
+
+after installing rJava package.
 
 
 Getting Started
