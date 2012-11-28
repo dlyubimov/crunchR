@@ -31,7 +31,7 @@ public class RDoFn<S, T> extends DoFn<S, T> {
 
     protected transient TwoWayRPipe rpipe;
     protected transient int         doFnRef;
-    protected transient RType<S>    srtype;
+    protected transient RType<?>    srtype;
     protected transient RType<T>    trtype;
     protected transient Emitter<T>  emitter;
     protected transient boolean     cleaned;
@@ -41,8 +41,8 @@ public class RDoFn<S, T> extends DoFn<S, T> {
      * 
      * @return doFn
      */
-    @SuppressWarnings("rawtypes")
-    public static RDoFn fromBytes(byte[] bytes) throws IOException {
+    @SuppressWarnings("unchecked")
+    public static <S, T> RDoFn<S, T> fromBytes(byte[] bytes) throws IOException {
         return RDoFnRType.getInstance().get(ByteBuffer.wrap(bytes), null);
     }
 
@@ -70,8 +70,9 @@ public class RDoFn<S, T> extends DoFn<S, T> {
         this.doFnRef = doFnRef;
     }
 
+    @SuppressWarnings("unchecked")
     public RType<S> getSRType() {
-        return srtype;
+        return (RType<S>)srtype;
     }
 
     public RType<T> getTRType() {
@@ -110,7 +111,7 @@ public class RDoFn<S, T> extends DoFn<S, T> {
     public void process(S src, Emitter<T> emitter) {
         try {
             this.emitter = emitter;
-            rpipe.add(src, srtype, doFnRef);
+            rpipe.add(src, getSRType(), doFnRef);
         } catch (IOException exc) {
             // TODO: so what are we supposed to wrap it to in Crunch?
             throw new RuntimeException(exc);
@@ -136,7 +137,6 @@ public class RDoFn<S, T> extends DoFn<S, T> {
             /*
              * wait till our R counterpart finishes all the things it still
              * wanted to finish.
-             * 
              */
             while (!cleaned)
                 rpipe.checkOutputQueue(true, true);
@@ -153,29 +153,33 @@ public class RDoFn<S, T> extends DoFn<S, T> {
     public void initialize() {
         super.initialize();
         try {
-            Configuration conf = getConfiguration();
-            srtype = RType.fromState(sRTypeState, conf);
-            trtype = RType.fromState(tRTypeState, conf);
 
-            /*
-             * for the purpose of evaluation of approach, we are going to make
-             * another assumption and assume that no initialize() is going to be
-             * called before any process() of any function. This, however, a
-             * more dangerous assumption in general case since Crunch may
-             * develop in ways that obviously do not hold this assumption true,
-             * or it may lazily delay function initializations in some cases for
-             * the purposes of optimization or something. Going forward, we
-             * probably
-             */
-            RController rcontroller = RController.getInstance(getConfiguration());
-            rpipe = rcontroller.getRPipe();
-            rpipe.startIfNotStarted();
-
+            init();
             rpipe.addDoFn(this);
 
         } catch (IOException exc) {
             throw new RuntimeException(exc);
         }
+    }
+
+    protected void init() throws IOException {
+        Configuration conf = getConfiguration();
+        srtype = RType.fromState(sRTypeState, conf);
+        trtype = RType.fromState(tRTypeState, conf);
+
+        /*
+         * for the purpose of evaluation of approach, we are going to make
+         * another assumption and assume that no initialize() is going to be
+         * called before any process() of any function. This, however, a more
+         * dangerous assumption in general case since Crunch may develop in ways
+         * that obviously do not hold this assumption true, or it may lazily
+         * delay function initializations in some cases for the purposes of
+         * optimization or something. Going forward, we probably
+         */
+        RController rcontroller = RController.getInstance(getConfiguration());
+        rpipe = rcontroller.getRPipe();
+        rpipe.startIfNotStarted();
+
     }
 
 }

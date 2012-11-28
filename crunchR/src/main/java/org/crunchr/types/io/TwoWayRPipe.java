@@ -15,6 +15,7 @@ import org.apache.crunch.Pair;
 import org.crunchr.fn.CleanupDoFn;
 import org.crunchr.fn.RDoFn;
 import org.crunchr.fn.RDoFnRType;
+import org.crunchr.fn.RGroupedDoFn;
 import org.crunchr.r.RCallException;
 import org.crunchr.r.RController;
 import org.crunchr.types.RType;
@@ -52,6 +53,7 @@ public class TwoWayRPipe {
      */
     public static final int       ADD_DO_FN          = -1;
     public static final int       CLEANUP_FN         = -2;
+    public static final int       ADD_GROUPED_DO_FN  = -3;
 
     private ByteBuffer            inBuffers[];
     private BlockingQueue<byte[]> inQueue;
@@ -111,14 +113,27 @@ public class TwoWayRPipe {
 
     }
 
-    public void addDoFn(RDoFn<?, ?> doFn) throws IOException {
+    protected <S, T> void addDoFnAny(RDoFn<S, T> doFn) throws IOException {
         int doFnRef = doFnMap.size() + 1;
         doFnMap.put(doFnRef, doFn);
         doFn.setDoFnRef(doFnRef);
         doFn.setRpipe(this);
 
+    }
+
+    public <S, T> void addDoFn(RDoFn<S, T> doFn) throws IOException {
+
+        addDoFnAny(doFn);
+
         // ... dispatch function addition to the R side
         add(doFn, rDoFnType, ADD_DO_FN);
+    }
+
+    public <K,V, T> void addGroupedDoFn(RGroupedDoFn<K,V, T> groupedDoFn) throws IOException {
+        addDoFnAny(groupedDoFn);
+        // ... dispatch function addition to the R side
+        add(groupedDoFn, rDoFnType, ADD_GROUPED_DO_FN);
+
     }
 
     public <S> void add(S value, RType<S> rtype, int doFnRef) throws IOException {
@@ -201,7 +216,7 @@ public class TwoWayRPipe {
          */
         try {
             outQueue.put(emitBuff);
-            synchronized(this) { 
+            synchronized (this) {
                 notify();
             }
         } catch (InterruptedException e) {

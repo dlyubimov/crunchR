@@ -135,6 +135,19 @@ crunchR.RPTableType <- setRefClass("RPTableType", contains =  "RType",
 		)
 )
 
+crunchR.RPGroupedTableType = setRefClass("RPGroupedTableType", contains = "RType",
+		fields = list (
+				keyType = "RType",
+				valueType = "RType"
+		),
+		methods = list (
+				get = RPGroupedTableType.get,
+				getState = RPGroupedTableType.getState,
+				setState = RPGroupedTableType.setState,
+				getJavaClassName = function() "org.crunchr.types.io.RPGropedTableType"
+		)
+)
+
 ############################ TwoWayPipe.R ###############################
 
 crunchR.TwoWayPipe <- setRefClass("TwoWayPipe",
@@ -153,7 +166,7 @@ crunchR.TwoWayPipe <- setRefClass("TwoWayPipe",
 				addDoFn = TwoWayPipe.addDoFn,
 				run = TwoWayPipe.run,
 				dispatch = TwoWayPipe.dispatch,
-				emit = TwoWayPipe.emit,
+				sendEmit = TwoWayPipe.sendEmit,
 				flushOutput = TwoWayPipe.flushOutput,
 				closeOutput = TwoWayPipe.closeOutput
 		)
@@ -167,32 +180,61 @@ crunchR.DoFn <- setRefClass("DoFn",
 				doFnRef="numeric",
 				srtype="RType", 
 				trtype="RType",
-				FUN_INITIALIZE="function",
-				FUN_PROCESS="function",
-				FUN_CLEANUP="function"
+				femit="ANY",
+				FUN_INITIALIZE="ANY",
+				FUN_PROCESS="ANY",
+				FUN_CLEANUP="ANY"
 		),
 		methods = list (
-				initialize = DoFn.initialize,
-				getSRType = DoFn.getSRType,
-				getTRType = DoFn.getTRType,
+				initialize=function(...) initFields(
+							FUN_INITIALIZE=NULL,
+							FUN_PROCESS=NULL,
+							FUN_CLEANUP=NULL,
+							femit=NULL),
+				init = DoFn.init,
+				getSRType = function () srtype,
+				getTRType = function () trtype,
+				.customizeEnv = DoFn..customizeEnv,
 				fcall = function (f,...) if (!is.null(f)) f(...),
 				callInitialize = function(...) fcall(FUN_INITIALIZE),
 				callProcess = function(...) fcall(FUN_PROCESS,...),
-				callCleanup = function(...) fcall(FUN_CLEANUP)
+				callCleanup = function(...) fcall(FUN_CLEANUP),
+				getClosures = function() 
+					list(initialize=FUN_INITIALIZE,process=FUN_PROCESS,cleanup=FUN_CLEANUP)
 		)
 )
 
-crunchR.DoFnRType <- setRefClass("RDoFnRType", contains = "RType", 
+crunchR.GroupedDoFn <- setRefClass("GroupedDoFn",
+		fields = list (
+				FUN_INIT_GROUP = "function",
+				FUN_CLEANUP_GROUP = "function"
+		),
+		methods = list (
+				init = GroupedDoFn.init,
+				callProcess = GroupedDoFn.callProcess,
+				callInitGroup = function(...) fcall(FUN_INIT_GROUP,...),
+				callCleanupGroup = function (...) fcall(FUN_CLEANUP_GROUP,...),
+				getClosures = function () 
+					c (callSuper(),groupInit=FUN_INIT_GROUP,groupCleanup=FUN_CLEANUP_GROUP)
+		)
+)
+
+crunchR.DoFnRType <- setRefClass("DoFnRType", contains = "RType", 
 		fields = list (
 				rpipe = "ANY"
 		),
 		methods = list (
-				initialize = DoFnRType.initialize,
+				initialize = function(rpipe=NULL) rpipe <<- rpipe,
 				set = DoFnRType.set,
 				get = DoFnRType.get
 		)
 )
-
+crunchR.GroupedDoFnRType <- setRefClass("GroupedDoFnRType", contains="DoFnRType",
+		methods = list (
+				initialize = function(...) callSuper(...),
+				get = function(rawbuff,offset=1) callSuper(rawbuff,offset,crunchR.groupedDoFn$new())
+		)
+)
 
 ############################ Pipeline.R ################################
 #'
@@ -242,12 +284,20 @@ crunchR.PipelineResult <- setRefClass("PipelineResult",
 crunchR.PCollection <- setRefClass ("PCollection", 
 		fields = list (
 				jobj = "jobjRef",
-				rtype = "RType"
+				rtype = "RType",
+				doFnGen = "refObjectGenerator"
 		),
 		methods = list (
-				.jparallelDo = function (FUN_PROCESS, 
-						FUN_INITIALIZE=NULL,FUN_CLEANUP=NULL,trtype ) {
-					doFn <- crunchR.DoFn$new(FUN_PROCESS,FUN_INITIALIZE,FUN_CLEANUP)
+				initialize = function (...) {
+					initFields(...)
+					# roxygen process seems to invoke constructors of 
+					# base classes with no proper environment setup ..
+					# workaround
+					if ( exists("crunchR.DoFn")) doFnGen <<- crunchR.DoFn
+				},
+				.jparallelDo = function (closures,trtype ) {
+					doFn <- doFnGen$new()
+					doFn$init(closures)
 					doFn$srtype <- rtype$as.singleEmit()
 					doFn$trtype <- trtype
 					
@@ -255,30 +305,41 @@ crunchR.PCollection <- setRefClass ("PCollection",
 							DoFnRType.set(doFn))
 					jobj$parallelDo(jDoFn,trtype$getPType())
 				},
-				parallelDo = function ( FUN_PROCESS, 
-						FUN_INITIALIZE=NULL,FUN_CLEANUP=NULL,
-						valueType=crunchR.RStrings$new(), keyType) {
+				# this automatically detects if 
+				# keyType argument supplied, then result is PTable instance; 
+				# otherwise, it is a PCollection one.
+				parallelDo = function ( 
+						FUN_PROCESS, 
+						FUN_INITIALIZE=NULL,
+						FUN_CLEANUP=NULL,
+						valueType = crunchR.RStrings$new(),
+						...
+					) 
+					.parallelDo(closures=
+									list(process=FUN_PROCESS,
+											initialize=FUN_INITIALIZE,
+											cleanup=FUN_CLEANUP),
+							valueType = valueType,
+							...),
+				
+				.parallelDo = function ( closures, keyType, ... ) { 
 					if (missing(keyType)) { 
-						.parallelDo.PCollection(FUN_PROCESS,FUN_INITIALIZE,FUN_CLEANUP,valueType)
+						.parallelDo.PCollection(closures,...)
 					} else {
-						.parallelDo.PTable(FUN_PROCESS,FUN_INITIALIZE,FUN_CLEANUP,keyType,valueType)
+						.parallelDo.PTable(closures,keyType,...)
 					}
 				},
-				.parallelDo.PCollection = function ( FUN_PROCESS, 
-						FUN_INITIALIZE,FUN_CLEANUP,	trtype ) {
-					
+				.parallelDo.PCollection = function ( closures, valueType ) {
 					crunchR.PCollection$new(
-							jobj=.jparallelDo(FUN_PROCESS,FUN_INITIALIZE,FUN_CLEANUP,trtype),
-							rtype=trtype
+							jobj = .jparallelDo( closures, valueType),
+							rtype = valueType
 					)
 				},
-				.parallelDo.PTable = function (FUN_PROCESS, FUN_INITIALIZE,FUN_CLEANUP,
-						keyType = crunchR.RString$new(),
-						valueType = crunchR.RString$new() ) {
+				.parallelDo.PTable = function (closures, keyType, valueType ) {
 					ptableType <- crunchR.RPTableType$new(keyType=keyType,valueType=valueType)
 					crunchR.PTable$new(
-							jobj=.jparallelDo(FUN_PROCESS,FUN_INITIALIZE,FUN_CLEANUP,ptableType),
-							rPTableType=ptableType
+							jobj=.jparallelDo( closures, ptableType),
+							rtype=ptableType
 					)
 				},
 				writeTextFile = function (pathname ) {
@@ -293,9 +354,47 @@ crunchR.PCollection <- setRefClass ("PCollection",
 
 crunchR.PTable <- setRefClass("PTable", contains = "PCollection",
 		fields = list ( 
-				rPTableType = "RPTableType"
 		),
 		methods = list (
+				groupByKey <- function() {
+					jgtable <- .jobj$groupByKey()
+					gtype=crunchR.RPGroupedTableType$new(
+							keyType=rtype$keyType,
+							valueType = type$valueType)
+					gtable <- crunchR.PGroupedTable$new(jobj=jgtable,
+							rtype = gtype
+					)
+				}
+		)
+)
+
+crunchR.PGroupedTable <- setRefClass("PGroupedTable", contains = "PCollection",
+		methods = list (
+				initialize = function (...) {
+					callSuper( ...)
+					doFnGen <<- crunchR.GroupedDoFn 
+				},
+				# this automatically detects if 
+				# keyType argument supplied, then result is PTable instance; 
+				# otherwise, it is a PCollection one.
+				parallelDo = function ( 
+						FUN_PROCESS, 
+						FUN_INITIALIZE=NULL,
+						FUN_CLEANUP=NULL,
+						FUN_INIT_GROUP,
+						FUN_CLEANUP_GROUP=NULL,
+						valueType = crunchR.RStrings$new(),
+						...
+					) 
+					.parallelDo(closures=
+									list(process=FUN_PROCESS,
+											initialize=FUN_INITIALIZE,
+											cleanup=FUN_CLEANUP,
+											groupInit=FUN_GROUP_INIT,
+											groupCleanup=FUN_CLEANUP_GROUP
+									),
+							valueType,
+							...)
 		)
 )
 

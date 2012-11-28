@@ -38,7 +38,7 @@ public class RControllerTest {
         REXP callbackRef = rController.getEngine().createRJavaRef(callback);
         rController.getEngine().assign("callback", callbackRef);
 
-        rController.eval("callback$set( .jarray(serialize(list(function(x) x, NULL,NULL), connection=NULL)))");
+        rController.eval("callback$set( .jarray(serialize(list(process=function(x) x), connection=NULL)))");
 
         RDoFn<String, String> simFun = new RDoFn<String, String>();
         simFun.setClosureList(fser[0]);

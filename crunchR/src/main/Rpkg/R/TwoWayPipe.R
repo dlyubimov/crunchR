@@ -1,5 +1,7 @@
 
-TwoWayPipe.ADD_DO_FN = -1;
+TwoWayPipe.ADD_DOFN <- -1
+TwoWayPipe.CLEANUP_DOFN <- -2
+TwoWayPipe.ADD_GROUPED_DOFN <- -3
 
 TwoWayPipe.initialize <- function (jpipe, outputBuffCapacity = 4096 ) { 
 	
@@ -7,27 +9,38 @@ TwoWayPipe.initialize <- function (jpipe, outputBuffCapacity = 4096 ) {
 	doFnMap <<- list()
 	
 	# special function #1: create another serialized DoFn instance.
-	addDoFnFn <- crunchR.DoFn$new(function(doFn) .self$addDoFn(doFn) )
+	addDoFnFn <- crunchR.DoFn$new()
+	addDoFnFn$init(list(process=function(doFn) .self$addDoFn(doFn) ), rpipe =.self)
 	addDoFnFn$srtype <- crunchR.DoFnRType$new(.self)
-	addDoFnFn$doFnRef <- -1
+	addDoFnFn$doFnRef <- TwoWayPipe.ADD_DOFN
 	addDoFn(addDoFnFn)
 	
+	# special function #3: create GroupedDoFn instance.
+	addGroupedDoFnFn <- crunchR.DoFn$new()
+	addGroupedDoFnFn$init(list(process=function(groupedDoFn) .self$addDoFn(doFn)),rpipe=.self)
+	addGroupedDoFnFn$srtype <- crunchR.GroupedDoFnRType$new(.self)
+	addGroupedDoFnFn$doFnRef <- TwoWayPipe.ADD_GROUPED_DOFN
+	addDoFn(addGroupedDoFnFn)
+	
 	# special function #2: computational cleanup of doFns: 
-	cleanupDoFn <- crunchR.DoFn$new(function(fnRef){
-				doFn <- .self$doFnMap[[as.character(fnRef)]]
-				if ( is.null(doFn))
-					stop(sprintf("Unknown doFnRef %d.",x))
-				doFn$callCleanup()
-				emit(fnRef)
-				.self$flushOutput()
-			},
-			customizeEnv=T
+	cleanupDoFn <- crunchR.DoFn$new()
+	cleanupDoFn$init( list(process=function(fnRef){
+						doFn <- .self$doFnMap[[as.character(fnRef)]]
+						if ( is.null(doFn))
+							stop(sprintf("Unknown doFnRef %d.",x))
+						doFn$callCleanup()
+						emit(fnRef)
+						.self$flushOutput()
+					}),
+			customizeEnv=T,
+			rpipe=.self
 	)
 	cleanupDoFn$srtype <- crunchR.RVarInt32$new()
 	cleanupDoFn$trtype <- crunchR.RVarInt32$new()
-	cleanupDoFn$doFnRef <- -2
+	cleanupDoFn$doFnRef <- TwoWayPipe.CLEANUP_DOFN
 	addDoFn(cleanupDoFn)
 	
+	# pipe fields
 	outputBuffCapacity <<- outputBuffCapacity
 	outputBuff <<- raw(outputBuffCapacity)
 	outputBuffOffset <<- 1
@@ -105,7 +118,7 @@ TwoWayPipe.dispatch <- function (rawbuff) {
 	}
 }
 
-TwoWayPipe.emit <- function (...,doFn) {
+TwoWayPipe.sendEmit <- function (doFn,...) {
 	if ( outputBuffOffset >= outputBuffCapacity ) flushOutput()
 	packedEmission <- doFn$trtype$set(...)
 	

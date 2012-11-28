@@ -1,38 +1,58 @@
 
-#' DoFn$initialize method
+#' DoFn$initialize method, mainly, to initialize closure environments with proper emit() 
+#' function.
 #' 
-#' @param FUN_PROCESS the process method, R-serialized into raw
-#' @param FUN_INITIALIZE optional initialize R function
-#' @param FUN_CLEANUP optional cleanup R function
-DoFn.initialize <- function ( FUN_PROCESS, FUN_INITIALIZE=NULL, FUN_CLEANUP=NULL,
-		customizeEnv=F) {
+#' @param closures a list with fields $process = process function, $initalize= initialize function, 
+#'   		$cleanup= cleanup function
+DoFn.init <- function ( closures,
+		customizeEnv=F, rpipe = NULL, femit = NULL, ...) {
 	doFnRef <<- 0
 	
 	# prep call environment
-	femit <- function(...) .self$rpipe$emit(...,doFn=.self)
+	if (is.null(femit))
+		femit <- function(...) .self$rpipe$sendEmit(doFn=.self,...)
 	
-	fcustEnv <- function(f) {
-		if ( customizeEnv ) { 
-			fenv <- new.env(parent=environment(f))
-			fenv$emit<-femit
-			environment(f)<-fenv
-		} 
-		f
-	}
+	femit <<- femit
 	
-	stopifnot (!is.null(FUN_PROCESS))
-	FUN_PROCESS <<- fcustEnv(FUN_PROCESS)
-	if (!is.null(FUN_INITIALIZE)) FUN_INITIALIZE <<- fcustEnv(FUN_INITIALIZE)
-	if (!is.null(FUN_CLEANUP)) FUN_CLEANUP <<- fcustEnv(FUN_CLEANUP)
+	if ( !is.null(rpipe))
+		rpipe <<- rpipe
+	
+	stopifnot (!is.null(closures$process))
+	FUN_PROCESS <<- .customizeEnv(closures$process,customizeEnv)
+	if (!is.null(closures$initialize)) FUN_INITIALIZE <<- .customizeEnv(closures$initialize,customizeEnv)
+	if (!is.null(closures$cleanup)) FUN_CLEANUP <<- .customizeEnv(closures$cleanup,customizeEnv)
 	
 	srtype <<- crunchR.RString$new()
 	trtype <<- crunchR.RStrings$new()
 	
 }
 
-DoFn.getSRType <- function () srtype
+DoFn..customizeEnv <- function(FUN, customizeEnv) { 
+	if ( customizeEnv ) { 
+		fenv <- new.env(parent=environment(FUN))
+		fenv$emit <- femit
+		environment(FUN)<-fenv
+	} 
+	FUN
+}
 
-DoFn.getTRType <- function () trtype
+GroupedDoFn.init <- function (closures, customizeEnv=F, ...) {
+	callSuper(closures,customizeEnv,...)
+	
+	if (!is.null(closures$initGroup)) FUN_INIT_GROUP <<- 
+				.customizeEnv(closures$initGroup,customizeEnv)
+	if (!is.null(closures$cleanupGroup)) FUN_CLEANUP_GROUP <<- 
+				.customizeEnv(closures$cleanupGroup,customizeEnv)
+}
+
+GroupedDoFn.callProcess <- function(groupChunk) {
+	if (groupChunk$firstChunk) 
+		callInitGroup(groupChunk$key)
+	fcall(FUN_PROCESS,groupChunk$vv)
+	if ( groupChunk$lastChunk) 
+		callCleanupGroup()
+}
+
 
 DoFnRType.set <- function (value ) {
 	stopifnot (is(value,crunchR.DoFn$className))
@@ -41,8 +61,7 @@ DoFnRType.set <- function (value ) {
 	
 	fnRef <- .setVarUint32(doFn$doFnRef)
 	
-	closures <- RRaw.set(serialize( list (doFn$FUN_PROCESS,doFn$FUN_INITIALIZE,doFn$FUN_CLEANUP),
-					connection=NULL)); 
+	closures <- RRaw.set(serialize( doFn$getClosures(),	connection=NULL)); 
 	
 	rTypeState <- RTypeStateRType.set(doFn$srtype$getState())
 	tTypeState <- RTypeStateRType.set(doFn$trtype$getState())
@@ -53,7 +72,7 @@ DoFnRType.set <- function (value ) {
 	
 }
 
-DoFnRType.get <- function (rawbuff,offset=1 ) {
+DoFnRType.get <- function (rawbuff,offset=1, holder = NULL ) {
 	
 	fnRef <- .getVarUint32(rawbuff,offset)
 	offset <- offset + fnRef[2]
@@ -70,10 +89,10 @@ DoFnRType.get <- function (rawbuff,offset=1 ) {
 	offset <- tTypeState$offset
 	tTypeState <- tTypeState$value
 	
-	doFn <- crunchR.DoFn$new(closures[[1]],closures[[2]],
-			closures[[3]],customizeEnv=T)
+	doFn <- if (is.null(holder)) crunchR.DoFn$new() else holder
+	doFn$init(closures,	customizeEnv=T, rpipe = rpipe)
+	
 	doFn$doFnRef <- fnRef[1]
-	doFn$rpipe <- rpipe
 	
 	# RType classes must have default constructor for generic DoFn'ss
 	doFn$srtype <- getRefClass(sTypeState$rClassName)$new()
@@ -85,8 +104,5 @@ DoFnRType.get <- function (rawbuff,offset=1 ) {
 	list(value=doFn,offset=offset)
 }
 
-DoFnRType.initialize <- function (rpipe) {
-	rpipe <<- rpipe
-}
 
 

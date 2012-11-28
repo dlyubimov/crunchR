@@ -63,12 +63,15 @@ wordCountExample2()
 
 #####################
 ### quick scratchpad
-#rpipe <- crunchR.TwoWayPipe$new(new(J("java/lang/String")))
-#doFn <- crunchR.DoFn$new(function(x) emit(x),customizeEnv=T)
-#doFn$rpipe <- rpipe
-#doFn$callProcess(c("A","B","C"))	
-#
-#line <- "this is a line"
-#class(strsplit(tolower(line),"[^[:alnum:]]")[[1]])
 
-#ptable <- crunchR.RPTableType$new()
+
+#rpipe=crunchR.TwoWayPipe$new(new(J("java/lang/String")))
+#ls(environment(rpipe$doFnMap$`-2`$FUN_PROCESS))
+#
+#doFn <- crunchR.DoFn$new()
+#doFn$init(list(process=function(x) emit(x)),customizeEnv=T,rpipe=rpipe)
+#doFn$callProcess("WORD","KDLS")
+#doFn$femit
+
+
+

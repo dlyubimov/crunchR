@@ -81,19 +81,19 @@ RStrings.get <- function (rawbuff, offset = 1 ) {
 	count <- .getVarUint32(rawbuff,offset)
 	offset <- offset + count[2]
 	count <- count[1]
-	valueVec <- character(0)
-	while (count > 0 ) { 
-		len <- .getVarUint32(rawbuff[offset:length(rawbuff)])
-		offset <- offset + len[2]
-		if ( len[1] == 0 ) { 
-			value <- ""
-		} else { 
-			value <- iconv(list(rawbuff[offset:(offset+len[1]-1)]),from="UTF8")[[1]]
-			offset <- offset+len[1]
-		}
-		valueVec[length(valueVec)+1] <- value
-		count <- count -1 
-	}
+	valueVec <- 
+			if ( count >0 ) supply(1:count, function(x) { 
+							len <- .getVarUint32(rawbuff[offset:length(rawbuff)])
+							offset <<- offset + len[2]
+							if ( len[1] == 0 ) { 
+								value <- ""
+							} else { 
+								value <- unlist(iconv(list(rawbuff[offset:(offset+len[1]-1)]),from="UTF8"))
+								offset <<- offset+len[1]
+							}
+							value
+						}
+				) else character(0)
 	list(value=valueVec,offset=offset)
 }
 
@@ -143,7 +143,7 @@ RTypeStateRType.set <- function ( value ) {
 	)
 }
 
-RPTableType.setState = function (typeState ) {
+RPTableType.setState <- function (typeState ) {
 	callSuper(typeState)
 	
 	rawbuff <- typeState$specificState
@@ -171,6 +171,84 @@ RPTableType.getState <-  function () {
 			RTypeStateRType.set(valueType$getState())
 	)
 	state
+}
+
+RPGroupedTableType.getState <- function () {
+	state <- callSuper()
+	state$specificState <- c(
+			RTypeStateRType.set(keyType$getState()),
+			RTypeStateRType.set(valueType$getState())
+	)
+	state
+}
+
+RPGroupedTableType.setState <- function (typeState ) {
+	
+	callSuper(typeState)
+	
+	rawbuff <- typeState$specificState
+	
+	keyTypeState <- RTypeStateRType.get(rawbuff)
+	offset <- keyTypeState$offset
+	keyTypeState <- keyTypeState$value
+	
+	valueTypeState <- RTypeStateRType.get(rawbuff,offset)
+	offset <- valueTypeState$offset
+	valueTypeState <- valueTypeState$value
+	
+	keyType <<- getRefClass(keyTypeState$rClassName)$new()
+	keyType$setState(keyTypeState)
+	
+	valueType <<- getRefClass(valueTypeState$rClassName)$new()
+	valueType$setState(valueTypeState)
+	
+}
+
+
+.FIRST_CHUNK    <- 0x01
+.LAST_CHUNK     <- 0x02
+
+#' unserialize grouped chunk of data
+#' @return a list of value and offset of the next message in the buffer.
+#' value is a list with the following attributes: 
+#' firstChunk, boolean, indicates this is a first chunk in a group.
+#' lastChunk, boolean, indicates if this is a lust chunk of values in the group.
+#' key -- is the grouped key, if firstChunk==TRUE, or NULL otherwise.
+#' vv -- list of values in chunk
+#' 
+RPGroupedTableType.get <- function (rawbuff, offset=1) {
+	# flags
+	flags <- as.integer(rawbuff[offset])
+	offset <- offset + 1
+	
+	# key
+	if ( bitAnd(flags,.FIRST_CHUNK)!= 0) { 
+		key	<- keyType$get(rawbuff,offset)
+		offset <- offset + key$offset
+		firstChunk <- T
+	} else {
+		key <- NULL
+		firstChunk <- F
+	}
+	
+	# value count 
+	count <- .getShort(rawbuff,offset)
+	offset <- offset + 2
+	
+	vv <- sapply(1:count, function(x) {
+				v <- valueType$get(rawbuff,offset)
+				offset <<- v$offset
+				v$value
+			}
+	)
+	list(offset=offset,
+			value = list(
+					key=key,
+					vv=vv,
+					firstChunk=firstChunk,
+					lastChunk=(bitAnd(flags,.LAST_CHUNK)!=0)
+			)
+	)
 }
 
 #' unserialize a function packed using RRaw RType
