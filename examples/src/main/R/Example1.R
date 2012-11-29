@@ -95,7 +95,7 @@ wordCountExample2 <- function() {
 	if ( !result$succeeded() ) stop ("pipeline failed.")
 }
 
-#wordCountExample2()
+wordCountExample2()
 
 
 #####################
