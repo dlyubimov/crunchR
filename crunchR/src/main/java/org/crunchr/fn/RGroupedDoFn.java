@@ -2,7 +2,10 @@ package org.crunchr.fn;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
+import java.util.logging.Logger;
 
 import org.apache.crunch.Emitter;
 import org.apache.crunch.Pair;
@@ -35,7 +38,17 @@ import org.crunchr.types.RType;
  */
 public class RGroupedDoFn<K, V, T> extends RDoFn<Pair<K, Iterable<V>>, T> {
 
-    private static final long serialVersionUID = 1L;
+    private static final Logger s_log            = Logger.getLogger("crunchR");
+
+    private static final long   serialVersionUID = 1L;
+
+    /*
+     * TODO: obviously item size in a chunk may vary a lot. For something like
+     * matrix blocks (somethings that i use a lot) even 20 items may represent a
+     * big memory chunk. So we need to be able to override this.
+     */
+    private int                 chunkSize        = 20;
+    private transient List<V>   valueChunk;
 
     /**
      * deserializing factory method
@@ -50,7 +63,6 @@ public class RGroupedDoFn<K, V, T> extends RDoFn<Pair<K, Iterable<V>>, T> {
 
     @Override
     public void initialize() {
-        super.initialize();
         try {
 
             init();
@@ -61,13 +73,8 @@ public class RGroupedDoFn<K, V, T> extends RDoFn<Pair<K, Iterable<V>>, T> {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    public RType<Pair<K, Iterator<V>>> getGroupedSRType() {
-        /*
-         * this is a sort of hack for grouped types: since for grouped chunks,
-         * we serailize Pair<K,Iterator<V>> instead of Pair<K,Iterable<V>>
-         */
-        return (RType<Pair<K, Iterator<V>>>) srtype;
+    public RType<Pair<K, Iterable<V>>> getGroupedSRType() {
+        return srtype;
     }
 
     @Override
@@ -100,8 +107,22 @@ public class RGroupedDoFn<K, V, T> extends RDoFn<Pair<K, Iterable<V>>, T> {
              * a reducer group.
              */
 
-            Pair<K, Iterator<V>> holder = Pair.of(src.first(), src.second().iterator());
-            do {
+            if (valueChunk == null)
+                valueChunk = new ArrayList<V>(chunkSize);
+
+            boolean firstChunk = true;
+
+            for (Iterator<V> viter = src.second().iterator(); viter.hasNext();) {
+                valueChunk.clear();
+                for (int count = 0; count < chunkSize && viter.hasNext(); count++) {
+                    valueChunk.add(viter.next());
+                }
+                Pair<K, Iterable<V>> holder =
+                    firstChunk ? Pair.of(src.first(), (Iterable<V>) valueChunk) : Pair.of((K) null,
+                                                                                          (Iterable<V>) valueChunk);
+
+//                s_log.info("sending " + valueChunk.size() + " items to R.");
+
                 rpipe.add(holder, getGroupedSRType(), doFnRef);
                 /*
                  * after the first chunk, the convention is that we don't
@@ -109,7 +130,13 @@ public class RGroupedDoFn<K, V, T> extends RDoFn<Pair<K, Iterable<V>>, T> {
                  */
                 if (holder.first() != null)
                     holder = Pair.of(null, holder.second());
-            } while (holder.second().hasNext());
+            }
+
+            if (valueChunk.size() > 0) {
+                /* send terminator with 0 size */
+                valueChunk.clear();
+                rpipe.add(Pair.of((K) null, (Iterable<V>) valueChunk), getGroupedSRType(), doFnRef);
+            }
         } catch (IOException exc) {
             // TODO: so what are we supposed to wrap it to in Crunch?
             throw new RuntimeException(exc);

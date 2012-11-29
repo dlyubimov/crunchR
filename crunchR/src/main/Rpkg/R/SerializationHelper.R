@@ -1,10 +1,6 @@
 
 # serialization helpers
 
-# normally should be F
-.jlogging <- F
-.jlogInfo <- function(s) .jcall(.crunchR$jlog,"V","info",s)  
-
 .getShort <- function (rawbuff, offset = 1 ) {
 	# assume little endian packing 
 	as.integer(sum(bitShiftL(rawbuff[offset:(offset+1)],8*(0:1))))

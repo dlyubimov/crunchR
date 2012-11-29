@@ -17,7 +17,7 @@ TwoWayPipe.initialize <- function (jpipe, outputBuffCapacity = 4096 ) {
 	
 	# special function #3: create GroupedDoFn instance.
 	addGroupedDoFnFn <- crunchR.DoFn$new()
-	addGroupedDoFnFn$init(list(process=function(groupedDoFn) .self$addDoFn(doFn)),rpipe=.self)
+	addGroupedDoFnFn$init(list(process=function(groupedDoFn) .self$addDoFn(groupedDoFn)),rpipe=.self)
 	addGroupedDoFnFn$srtype <- crunchR.GroupedDoFnRType$new(.self)
 	addGroupedDoFnFn$doFnRef <- TwoWayPipe.ADD_GROUPED_DOFN
 	addDoFn(addGroupedDoFnFn)

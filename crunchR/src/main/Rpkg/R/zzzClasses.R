@@ -144,7 +144,7 @@ crunchR.RPGroupedTableType = setRefClass("RPGroupedTableType", contains = "RType
 				get = RPGroupedTableType.get,
 				getState = RPGroupedTableType.getState,
 				setState = RPGroupedTableType.setState,
-				getJavaClassName = function() "org.crunchr.types.io.RPGropedTableType"
+				getJavaClassName = function() "org.crunchr.types.io.RPGroupedTableType"
 		)
 )
 
@@ -200,22 +200,36 @@ crunchR.DoFn <- setRefClass("DoFn",
 				callProcess = function(...) fcall(FUN_PROCESS,...),
 				callCleanup = function(...) fcall(FUN_CLEANUP),
 				getClosures = function() 
-					list(initialize=FUN_INITIALIZE,process=FUN_PROCESS,cleanup=FUN_CLEANUP)
+					list(initialize=FUN_INITIALIZE,process=FUN_PROCESS,cleanup=FUN_CLEANUP),
+				createJDoFn = function () 
+					.jcall(.crunchR$RDoFnJClass ,"Lorg/crunchr/fn/RDoFn;","fromBytes",
+							DoFnRType.set(.self))
 		)
 )
 
-crunchR.GroupedDoFn <- setRefClass("GroupedDoFn",
+crunchR.GroupedDoFn <- setRefClass("GroupedDoFn", contains="DoFn",
 		fields = list (
-				FUN_INIT_GROUP = "function",
-				FUN_CLEANUP_GROUP = "function"
+				FUN_INIT_GROUP = "ANY",
+				FUN_CLEANUP_GROUP = "ANY"
 		),
 		methods = list (
+				initialize = function(...) {
+					callSuper(...)
+					initFields(
+							FUN_INIT_GROUP=NULL,
+							FUN_CLEANUP_GROUP=NULL
+					)
+				},
 				init = GroupedDoFn.init,
 				callProcess = GroupedDoFn.callProcess,
 				callInitGroup = function(...) fcall(FUN_INIT_GROUP,...),
 				callCleanupGroup = function (...) fcall(FUN_CLEANUP_GROUP,...),
 				getClosures = function () 
-					c (callSuper(),groupInit=FUN_INIT_GROUP,groupCleanup=FUN_CLEANUP_GROUP)
+					c (callSuper(),list(initGroup = FUN_INIT_GROUP,cleanupGroup = FUN_CLEANUP_GROUP)),
+				createJDoFn = function () 
+					.jcall(.crunchR$RGroupedDoFnJClass ,"Lorg/crunchr/fn/RGroupedDoFn;","fromBytes",
+							DoFnRType.set(.self))
+		
 		)
 )
 
@@ -232,7 +246,7 @@ crunchR.DoFnRType <- setRefClass("DoFnRType", contains = "RType",
 crunchR.GroupedDoFnRType <- setRefClass("GroupedDoFnRType", contains="DoFnRType",
 		methods = list (
 				initialize = function(...) callSuper(...),
-				get = function(rawbuff,offset=1) callSuper(rawbuff,offset,crunchR.groupedDoFn$new())
+				get = function(rawbuff,offset=1) callSuper(rawbuff,offset,crunchR.GroupedDoFn$new())
 		)
 )
 
@@ -300,10 +314,7 @@ crunchR.PCollection <- setRefClass ("PCollection",
 					doFn$init(closures)
 					doFn$srtype <- rtype$as.singleEmit()
 					doFn$trtype <- trtype
-					
-					jDoFn <- .jcall(.crunchR$RDoFnJClass ,"Lorg/crunchr/fn/RDoFn;","fromBytes",
-							DoFnRType.set(doFn))
-					jobj$parallelDo(jDoFn,trtype$getPType())
+					jobj$parallelDo(doFn$createJDoFn(),trtype$getPType())
 				},
 				# this automatically detects if 
 				# keyType argument supplied, then result is PTable instance; 
@@ -356,12 +367,13 @@ crunchR.PTable <- setRefClass("PTable", contains = "PCollection",
 		fields = list ( 
 		),
 		methods = list (
-				groupByKey <- function() {
-					jgtable <- .jobj$groupByKey()
+				groupByKey = function() {
+					jgtable <- jobj$groupByKey()
 					gtype=crunchR.RPGroupedTableType$new(
-							keyType=rtype$keyType,
-							valueType = type$valueType)
-					gtable <- crunchR.PGroupedTable$new(jobj=jgtable,
+							keyType   = rtype$keyType,
+							valueType = rtype$valueType)
+					crunchR.PGroupedTable$new(
+							jobj  = jgtable,
 							rtype = gtype
 					)
 				}
@@ -378,22 +390,22 @@ crunchR.PGroupedTable <- setRefClass("PGroupedTable", contains = "PCollection",
 				# keyType argument supplied, then result is PTable instance; 
 				# otherwise, it is a PCollection one.
 				parallelDo = function ( 
+						FUN_INIT_GROUP,
 						FUN_PROCESS, 
 						FUN_INITIALIZE=NULL,
 						FUN_CLEANUP=NULL,
-						FUN_INIT_GROUP,
 						FUN_CLEANUP_GROUP=NULL,
 						valueType = crunchR.RStrings$new(),
 						...
 					) 
 					.parallelDo(closures=
-									list(process=FUN_PROCESS,
-											initialize=FUN_INITIALIZE,
-											cleanup=FUN_CLEANUP,
-											groupInit=FUN_GROUP_INIT,
-											groupCleanup=FUN_CLEANUP_GROUP
+									list(process = FUN_PROCESS,
+											initialize = FUN_INITIALIZE,
+											cleanup = FUN_CLEANUP,
+											initGroup = FUN_INIT_GROUP,
+											cleanupGroup = FUN_CLEANUP_GROUP
 									),
-							valueType,
+							valueType = valueType,
 							...)
 		)
 )

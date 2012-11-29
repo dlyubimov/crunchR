@@ -31,7 +31,7 @@ public class RDoFn<S, T> extends DoFn<S, T> {
 
     protected transient TwoWayRPipe rpipe;
     protected transient int         doFnRef;
-    protected transient RType<?>    srtype;
+    protected transient RType<S>    srtype;
     protected transient RType<T>    trtype;
     protected transient Emitter<T>  emitter;
     protected transient boolean     cleaned;
@@ -70,9 +70,8 @@ public class RDoFn<S, T> extends DoFn<S, T> {
         this.doFnRef = doFnRef;
     }
 
-    @SuppressWarnings("unchecked")
     public RType<S> getSRType() {
-        return (RType<S>)srtype;
+        return srtype;
     }
 
     public RType<T> getTRType() {

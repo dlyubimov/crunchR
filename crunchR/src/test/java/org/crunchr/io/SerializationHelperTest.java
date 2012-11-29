@@ -35,5 +35,5 @@ public class SerializationHelperTest {
             Assert.assertEquals(spaceUint32[i], testVarUint32(vals[i]));
         }
     }
-
+    
 }

@@ -1,35 +1,58 @@
 
-wordCountExample1 <- function() { 
+wordCountComplete <- function () {
 	
-	# this is WIP wordcount example in R, crunchR
 	pipeline <- crunchR.MRPipeline$new("test-pipeline")
 	inputPCol <- pipeline$readTextFile("/crunchr-examples/input")
-	
-	
-	
-#   this works:
+
+	# this ptable contains pairs word, 1
 	wordsPTab <- inputPCol$parallelDo(	
 			function(line) { 
 				words<- strsplit(tolower(line),"[^[:alnum:]]+")[[1]]
 				sapply(words, function(x) emit(x,1))
 			},
 			keyType = crunchR.RString$new(),
-			valueType = crunchR.RUint32$new()
+			valueType = crunchR.RVarUint32$new()
+	)
+
+	groupedPTab <- wordsPTab$groupByKey()
+	
+	key <- NULL
+	count <- 0
+	
+	wordCountsPTab <- groupedPTab$parallelDo(
+			FUN_INIT_GROUP = function (key) { 
+				key<<-key 
+				count <<- 0 
+			},
+			FUN_PROCESS = function (values) count <<- count + sum(values),
+			FUN_CLEANUP_GROUP = function() emit(key,count),
+			keyType = crunchR.RString$new(),
+			valueType = crunchR.RVarUint32$new()
 	)
 	
-	wordsPTab$writeTextFile("/crunchr-examples/output")
+	wordCountsPTab$writeTextFile("/crunchr-examples/output")
 	
 	result <- pipeline$run()
 	if ( !result$succeeded() ) stop ("pipeline failed.")
 	
 }
 
+library(crunchR)
+
+wordCountComplete()
+
+# end of wordCount example
+
+
+################################################
+# same as worldCountExample1 but decomposing   
+# mapper task into 2 do functions.
+################################################
+
 wordCountExample2 <- function() { 
 	pipeline <- crunchR.MRPipeline$new("test-pipeline")
 	inputPCol <- pipeline$readTextFile("/crunchr-examples/input")
 	
-	# same as worldCountExample1 but decomposing 
-	# mapper task into 2 do functions.
 	
 	# Currently, R part is agnostic of doFn() merging done by crunch; 
 	# so even that these two functions can be merged on the R side,
@@ -48,17 +71,31 @@ wordCountExample2 <- function() {
 	
 	wordsPTab <- wordsPCol$parallelDo(function(word) emit(word,1),
 			keyType = crunchR.RString$new(),
-			valueType = crunchR.RUint32$new())
+			valueType = crunchR.RVarUint32$new())
 	
-	wordsPTab$writeTextFile("/crunchr-examples/output")
+	groupedPTab <- wordsPTab$groupByKey()
+	
+	key <- NULL
+	count <- 0
+	
+	wordCountsPTab <- groupedPTab$parallelDo(
+			FUN_INIT_GROUP = function (key) { 
+				key<<-key 
+				count <<- 0 
+			},
+			FUN_PROCESS = function (values) count <<- count + sum(values),
+			FUN_CLEANUP_GROUP = function() emit(key,count),
+			keyType = crunchR.RString$new(),
+			valueType = crunchR.RVarUint32$new()
+	)
+	
+	wordCountsPTab$writeTextFile("/crunchr-examples/output")
 	
 	result <- pipeline$run()
 	if ( !result$succeeded() ) stop ("pipeline failed.")
-} 
+}
 
-library(crunchR)
-wordCountExample1()
-wordCountExample2()
+#wordCountExample2()
 
 
 #####################
@@ -72,6 +109,4 @@ wordCountExample2()
 #doFn$init(list(process=function(x) emit(x)),customizeEnv=T,rpipe=rpipe)
 #doFn$callProcess("WORD","KDLS")
 #doFn$femit
-
-
 

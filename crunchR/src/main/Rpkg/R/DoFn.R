@@ -9,10 +9,11 @@ DoFn.init <- function ( closures,
 	doFnRef <<- 0
 	
 	# prep call environment
-	if (is.null(femit))
-		femit <- function(...) .self$rpipe$sendEmit(doFn=.self,...)
-	
-	femit <<- femit
+	if (is.null(femit)) {
+		femit <<- function(...) .self$rpipe$sendEmit(doFn=.self,...)
+	} else {
+		femit <<- femit
+	}
 	
 	if ( !is.null(rpipe))
 		rpipe <<- rpipe
@@ -48,7 +49,7 @@ GroupedDoFn.init <- function (closures, customizeEnv=F, ...) {
 GroupedDoFn.callProcess <- function(groupChunk) {
 	if (groupChunk$firstChunk) 
 		callInitGroup(groupChunk$key)
-	fcall(FUN_PROCESS,groupChunk$vv)
+	if (!is.null(groupChunk$vv)) fcall(FUN_PROCESS,groupChunk$vv)
 	if ( groupChunk$lastChunk) 
 		callCleanupGroup()
 }

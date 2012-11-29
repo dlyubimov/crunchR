@@ -7,7 +7,6 @@ import java.util.Iterator;
 import org.apache.crunch.PGroupedTable;
 import org.apache.crunch.Pair;
 import org.apache.hadoop.conf.Configuration;
-import org.crunchr.fn.RDoFn;
 import org.crunchr.types.RType;
 import org.crunchr.types.RTypeState;
 
@@ -17,34 +16,18 @@ import org.crunchr.types.RTypeState;
  * emissions so much (I think).
  * <P>
  * 
- * This doesn't serialize the entire group but only just one chunk of it, so
- * {@link RDoFn} need to keep calling it until iterable's hasNext() returns
- * false.
  * 
  * @author dmitriy
  * 
  * @param <K>
  * @param <V>
  */
-public class RPGroupedTableType<K, V> extends RType<Pair<K, Iterator<V>>> {
+public class RPGroupedTableType<K, V> extends RType<Pair<K, Iterable<V>>> {
 
-    public static final int MAX_CHUNK_SIZE = 50;
+    public static final int FIRST_CHUNK = 0x01;
 
-    public static final int FIRST_CHUNK    = 0x01;
-    public static final int LAST_CHUNK     = 0x02;
-
-    /* must be less than 2^16 */
-    private int             maxChunkSize   = MAX_CHUNK_SIZE;
     private RType<K>        keyRType;
     private RType<V>        valueRType;
-
-    public int getMaxChunkSize() {
-        return maxChunkSize;
-    }
-
-    public void setMaxChunkSize(int maxChunkSize) {
-        this.maxChunkSize = maxChunkSize;
-    }
 
     /**
      * Warning: there's a deviation from a general contract here. This doesn't
@@ -52,7 +35,7 @@ public class RPGroupedTableType<K, V> extends RType<Pair<K, Iterator<V>>> {
      * called repeatedly until src.second().hasNext()==false.
      */
     @Override
-    public void set(ByteBuffer buffer, Pair<K, Iterator<V>> src) throws IOException {
+    public void set(ByteBuffer buffer, Pair<K, Iterable<V>> src) throws IOException {
 
         K key = src.first();
 
@@ -60,8 +43,6 @@ public class RPGroupedTableType<K, V> extends RType<Pair<K, Iterator<V>>> {
 
         int flags = 0;
         int flagsPosition = buffer.position();
-        if (key != null)
-            flags |= FIRST_CHUNK;
 
         /* we'll write them later */
         buffer.put((byte) 0);
@@ -69,6 +50,7 @@ public class RPGroupedTableType<K, V> extends RType<Pair<K, Iterator<V>>> {
         /* key */
         if (key != null) {
             keyRType.set(buffer, key);
+            flags |= FIRST_CHUNK;
         }
 
         /* value count */
@@ -81,15 +63,14 @@ public class RPGroupedTableType<K, V> extends RType<Pair<K, Iterator<V>>> {
         buffer.putShort((short) 0);
 
         /* values */
-        Iterator<V> iter = src.second();
-        for (count = 0; iter.hasNext() && count < maxChunkSize; count++) {
+        Iterator<V> iter = src.second().iterator();
+        for (count = 0; iter.hasNext(); count++) {
+
             V v = iter.next();
             valueRType.set(buffer, v);
         }
 
         /* flags again */
-        if (!iter.hasNext())
-            flags |= LAST_CHUNK;
         buffer.put(flagsPosition, (byte) flags);
 
         /* counter again */
@@ -99,7 +80,7 @@ public class RPGroupedTableType<K, V> extends RType<Pair<K, Iterator<V>>> {
     }
 
     @Override
-    public Pair<K, Iterator<V>> get(ByteBuffer buffer, Pair<K, Iterator<V>> holder) throws IOException {
+    public Pair<K, Iterable<V>> get(ByteBuffer buffer, Pair<K, Iterable<V>> holder) throws IOException {
         throw new UnsupportedOperationException("unsupported");
     }
 

@@ -25,6 +25,11 @@ NULL
 
 .crunchR <- new.env(parent=emptyenv())
 
+# normally should be F
+.jlogging <- F
+.jlogInfo <- function(s,...) .jcall(.crunchR$jlog,"V","info",sprintf(s,...))  
+
+
 .crunchR.init <- function(libname=NULL, pkgname=NULL, pkgInit = F) {
 	
 	library(rJava)
@@ -78,13 +83,10 @@ NULL
 	.crunchR$TextFileTargetJClass <- J("org/apache/crunch/io/text/TextFileTarget")
 	.crunchR$FileJClass <- J("java/io/File")
 	.crunchR$RDoFnJClass <- J("org/crunchr/fn/RDoFn")
+	.crunchR$RGroupedDoFnJClass <- J("org/crunchr/fn/RGroupedDoFn")
 	.crunchR$WritablesJClass <- J("org/apache/crunch/types/writable/Writables")
 	
 	.crunchR$jlog <- J("java/util/logging/Logger")$getLogger("crunchR")
-	
-	
-	
-	
 }
 
 

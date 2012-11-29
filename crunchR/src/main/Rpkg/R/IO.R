@@ -61,7 +61,8 @@ RVarInt32.set <- function (value ) {
 }
 
 RUint32.get <- function (rawbuff,offset=1 ) {
-	sum(bitShiftL(as.numeric(rawbuff[offset:(offset+3)]),(0:3)*8))
+	list(value=sum(bitShiftL(as.numeric(rawbuff[offset:(offset+3)]),(0:3)*8)),
+			offset=offset+4)
 }
 
 RUint32.set <- function ( value ) { 
@@ -70,7 +71,7 @@ RUint32.set <- function ( value ) {
 
 RInt32.get <- function (rawbuff,offset=1 ) {
 	r <- RUint32.get(rawbuff,offset)
-	if (r>=0x80000000 ) r<- r - 0x100000000
+	if (r$value>=0x80000000 ) r$value <- r$value - 0x100000000
 	r
 }
 
@@ -217,6 +218,11 @@ RPGroupedTableType.setState <- function (typeState ) {
 #' vv -- list of values in chunk
 #' 
 RPGroupedTableType.get <- function (rawbuff, offset=1) {
+	
+	if ( .jlogging ) 
+		.jlogInfo(paste(as.character(rawbuff[offset:min(c(offset+20,length(rawbuff)))]),collapse = " "))
+	
+	
 	# flags
 	flags <- as.integer(rawbuff[offset])
 	offset <- offset + 1
@@ -224,7 +230,8 @@ RPGroupedTableType.get <- function (rawbuff, offset=1) {
 	# key
 	if ( bitAnd(flags,.FIRST_CHUNK)!= 0) { 
 		key	<- keyType$get(rawbuff,offset)
-		offset <- offset + key$offset
+		offset <- key$offset
+		key <- key$value
 		firstChunk <- T
 	} else {
 		key <- NULL
@@ -235,20 +242,26 @@ RPGroupedTableType.get <- function (rawbuff, offset=1) {
 	count <- .getShort(rawbuff,offset)
 	offset <- offset + 2
 	
-	vv <- sapply(1:count, function(x) {
-				v <- valueType$get(rawbuff,offset)
-				offset <<- v$offset
-				v$value
-			}
-	)
-	list(offset=offset,
+	if (count ==0 ) { 
+		vv <- NULL
+	} else { 
+		vv <- sapply(1:count, function(x) {
+					v <- valueType$get(rawbuff,offset)
+					offset <<- v$offset
+					v$value
+				}
+		)
+	}
+	list(offset = offset,
 			value = list(
 					key=key,
 					vv=vv,
 					firstChunk=firstChunk,
-					lastChunk=(bitAnd(flags,.LAST_CHUNK)!=0)
+#					lastChunk=(bitAnd(flags,.LAST_CHUNK)!=0
+					lastChunk=(count==0)
 			)
 	)
+	
 }
 
 #' unserialize a function packed using RRaw RType
