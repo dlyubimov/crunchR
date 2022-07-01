@@ -65,7 +65,7 @@
 
 			<properties>
 				<crunch-version>0.4.0-incubating</crunch-version>
-				<hadoop-version>1.0.4</hadoop-version>
+				<hadoop-version>2.7.0</hadoop-version>
 				<rJava-version>0.9-3</rJava-version>
 				<protobuf-version>2.4.1</protobuf-version>
 				<testng-version>5.11</testng-version>
